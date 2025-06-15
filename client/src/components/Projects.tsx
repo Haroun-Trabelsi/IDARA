@@ -2,10 +2,10 @@
 
 import { Box, TextField, Typography, ThemeProvider, createTheme, CssBaseline } from "@mui/material"
 import { useState } from "react"
-import Sidebar from "./tmp/Sidebar"
-import SecondaryNavigation from "./tmp/SecondaryNavigation"
-import Toolbar from "./tmp/Toolbar"
-import TaskTable, { type Task } from "./tmp/TaskTable"
+import Sidebar from "./Project-components/Sidebar"
+import SecondaryNavigation from "./Project-components/SecondaryNavigation"
+import Toolbar from "./Project-components/Toolbar"
+import TaskTable, { type Task } from "./Project-components/TaskTable"
 import React from "react"
 
 // Enhanced dark theme matching the design
@@ -220,6 +220,10 @@ const mockTasks: Task[] = [
 ]
 
 export default function ProjectManagementInterface() {
+
+
+     
+  
   const [filterText, setFilterText] = useState("")
 
   return (
@@ -242,6 +246,7 @@ export default function ProjectManagementInterface() {
 
             {/* Filter Bar */}
             <Box sx={{ borderBottom: "1px solid #2d3748", bgcolor: "#1a202c", px: 2, py: 1.5 }}>
+              
               <TextField
                 placeholder="Type to filter..."
                 value={filterText}
@@ -318,6 +323,7 @@ export default function ProjectManagementInterface() {
 
             {/* Task Table Component */}
             <TaskTable tasks={mockTasks} />
+
           </Box>
         </Box>
       </Box>

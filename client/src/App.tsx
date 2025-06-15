@@ -1,6 +1,6 @@
 import React from 'react'
 import AuthModal from 'components/AuthModal'
-import Header from 'components/tmp/Header'
+import Header from 'components/Header'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import 'styles/ReactWelcome.css'
 import Home from 'components/Home'

@@ -33,6 +33,7 @@
     "@mui/material": "^7.1.1",
     "@tailwindcss/cli": "^4.1.8",
     "axios": "^1.8.4",
+    "dotenv": "^16.5.0",
     "ftrack": "^1.0.3",
     "lucide-react": "^0.511.0",
     "mui": "^0.0.1",
