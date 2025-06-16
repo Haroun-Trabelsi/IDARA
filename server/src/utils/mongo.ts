@@ -1,6 +1,8 @@
 import mongoose from 'mongoose'
 import { MONGO_URI, MONGO_OPTIONS } from '../constants/index'
+import dotenv from 'dotenv';
 
+dotenv.config();
 class Mongo {
   instance: typeof mongoose = mongoose
   mongoUri: string
@@ -8,7 +10,7 @@ class Mongo {
   isConnected: boolean
 
   constructor() {
-    this.mongoUri = MONGO_URI
+    this.mongoUri = process.env.MONGO_URI ||'env not working'
     this.mongoOptions = MONGO_OPTIONS
     this.isConnected = false
   }
