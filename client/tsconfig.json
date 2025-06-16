@@ -22,6 +22,6 @@
     "noFallthroughCasesInSwitch": true, // Report errors for fallthrough cases in switch statement
     "baseUrl": "src"
   },
-  "include": ["src"],
+  "include": ["src", "electron.js"],
   "exclude": ["node_modules", "build"]
 }

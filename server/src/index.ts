@@ -23,7 +23,9 @@ const bootstrap = async () => {
 
   app.listen(PORT, () => {
     console.log(`✅ Server is listening on port: ${PORT}`)
-  })
+  }).on('error', (err) => {
+    process.exit(1);
+  });
 }
 
 bootstrap()
