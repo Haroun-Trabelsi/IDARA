@@ -2,17 +2,21 @@
   "name": "client-v2",
   "version": "0.1.0",
   "private": true,
-  "main": "electron.js",
+  "main": "build/electron.js",
   "scripts": {
-  "server": "npm --prefix ../server run dev",
-  "client": "react-scripts start",
-  "electron": "wait-on http://localhost:3000/ && electron .",
-  "dev": "concurrently \"npm run server\" \"npm run client\" \"npm run electron\"",
-  "build": "npm run server && npm run client:build"
-},
+    "server": "npm --prefix ../server run dev",
+    "client": "react-scripts start",
+    "electron": "wait-on http://localhost:3000/ && electron .",
+    "dev": "concurrently \"npm run server\" \"npm run client\" \"npm run electron\"",
+    "build": "npm run server && npm run client:build"
+  },
   "build": {
     "appId": "com.myapp.desktop",
-    "files": ["electron.js", "server.js", "client/build/*/"]
+    "files": [
+      "build/**/*",
+      "client/build/**/*",
+      "server.js"
+    ]
   },
   "eslintConfig": {
     "extends": [
@@ -41,6 +45,7 @@
     "@tailwindcss/cli": "^4.1.8",
     "axios": "^1.8.4",
     "dotenv": "^16.5.0",
+    "electron-is-dev": "^3.0.1",
     "ftrack": "^1.0.3",
     "lucide-react": "^0.511.0",
     "mui": "^0.0.1",
