@@ -22,7 +22,7 @@ router.get('/projects', async (req, res) => {
 });
 
 // Get all tasks of project named "7760"
-router.get('/tasks/:projectName', async (req, res) => {
+/*router.get('/tasks/:projectName', async (req, res) => {
     try {
         const projectName = req.params.projectName;
 
@@ -54,6 +54,6 @@ router.get('/tasks/:projectName', async (req, res) => {
         console.error(err);
         res.status(500).json({ error: 'Failed to fetch tasks' });
     }
-});
+});*/
 
 export default router;
