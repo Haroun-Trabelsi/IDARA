@@ -6,9 +6,10 @@
   "scripts": {
     "server": "npm --prefix ../server run dev",
     "client": "react-scripts start",
+    "client:build": "react-scripts build",
     "electron": "wait-on http://localhost:3000/ && electron .",
     "dev": "concurrently \"npm run server\" \"npm run client\" \"npm run electron\"",
-    "build": "npm run server && npm run client:build"
+    "build": "npm run client:build"
   },
   "build": {
     "appId": "com.myapp.desktop",
@@ -45,7 +46,6 @@
     "@tailwindcss/cli": "^4.1.8",
     "axios": "^1.8.4",
     "dotenv": "^16.5.0",
-    "electron-is-dev": "^3.0.1",
     "ftrack": "^1.0.3",
     "lucide-react": "^0.511.0",
     "mui": "^0.0.1",
@@ -61,9 +61,9 @@
     "@types/react-dom": "^19.0.4",
     "autoprefixer": "^10.4.21",
     "concurrently": "^9.1.2",
-    "electron": "^36.4.0",
-    "electron-builder": "^26.0.12",
+    "css-loader": "^7.1.2",
     "postcss": "^8.5.4",
+    "postcss-loader": "^8.1.1",
     "serve": "^14.2.4",
     "tailwindcss": "^4.1.8",
     "wait-on": "^8.0.3"
