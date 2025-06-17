@@ -1,0 +1,25 @@
+import React from 'react'
+import AuthModal from 'components/AuthModal'
+import Header from 'components/Header'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import 'styles/ReactWelcome.css'
+import About from 'components/About'
+import ProjectManagementInterface from 'components/Projects'
+
+const App = () => {
+  return (
+    <BrowserRouter>
+      <div className='min-h-screen flex flex-col bg-gray-900 text-gray-300 w-full'>
+        <Header />
+        <Routes>
+          <Route path="/" element={<ProjectManagementInterface />} />
+          <Route path="/Projects" element={<ProjectManagementInterface />} />
+        </Routes>
+        <AuthModal />
+        <About />
+      </div>
+    </BrowserRouter>
+  )
+}
+
+export default App
