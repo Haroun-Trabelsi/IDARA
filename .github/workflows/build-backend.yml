@@ -13,7 +13,7 @@ jobs:
         working-directory: './server'
     strategy:
       matrix:
-        node-version: [20.x]
+        node-version: [22.x]
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -28,3 +28,5 @@ jobs:
           cache: 'npm'
           cache-dependency-path: './server/package-lock.json'
       - run: npm ci
+      - run: npm run build
+
