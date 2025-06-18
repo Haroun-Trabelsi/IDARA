@@ -27,20 +27,19 @@ import {
 import React from "react"
 
 export interface Task {
-  id: string
-  number: number
-  type: "Project" | "Sequence" | "Shot" | "Task (CamTrack)"
-  status: "completed" | "in-progress" | "omitted" | "pending"
-  assignee?: string
-  description?: string
-  dueDate?: string
-  bidHours: number
-  actualHours: number
-  children?: Task[]
-  expanded?: boolean
-  level: number
-  icon?: string
+  id: string;
+  number: number;
+  type: string; // e.g., "Task (CamTrack)"
+  status: "completed" | "in-progress" | "omitted" | "pending";
+  assignee?: string;
+  description?: string;
+  dueDate?: string;
+  bidHours: number;
+  actualHours: number;
+  level: number; // Keep if you want to apply styling (e.g., indentation)
+  icon?: string;
 }
+
 
 interface TaskTableProps {
   tasks: Task[]
@@ -104,9 +103,6 @@ export default function TaskTable({ tasks }: TaskTableProps) {
 
     const addTask = (task: Task) => {
       result.push(task)
-      if (task.children && expandedItems.has(task.id)) {
-        task.children.forEach(addTask)
-      }
     }
 
     tasks.forEach(addTask)
@@ -282,7 +278,7 @@ export default function TaskTable({ tasks }: TaskTableProps) {
 
               <TableCell sx={{ p: 1, borderBottom: "1px solid #2d3748" }}>
                 <Box sx={{ display: "flex", alignItems: "center", pl: task.level * 2.5 }}>
-                  {task.children && task.children.length > 0 && (
+                  
                     <IconButton
                       size="small"
                       onClick={() => toggleExpanded(task.id)}
@@ -294,7 +290,7 @@ export default function TaskTable({ tasks }: TaskTableProps) {
                         <KeyboardArrowRight fontSize="small" />
                       )}
                     </IconButton>
-                  )}
+                  
                   <Typography variant="body2" sx={{ color: "#e2e8f0", fontSize: "13px" }}>
                     {task.id}
                   </Typography>

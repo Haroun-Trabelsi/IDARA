@@ -5,7 +5,7 @@ import { useEffect, useState } from "react"
 import Sidebar from "./Project-components/Sidebar"
 import SecondaryNavigation from "./Project-components/SecondaryNavigation"
 import Toolbar from "./Project-components/Toolbar"
-import TaskTable, { type Task } from "./Project-components/TaskTable"
+import TaskTable, {  Task } from "./Project-components/TaskTable"
 import React from "react"
 import { useProject } from '../contexts/ProjectContext';
 
@@ -46,182 +46,10 @@ const darkTheme = createTheme({
   },
 })
 
-const mockTasks: Task[] = [
-  {
-    id: "7760",
-    number: 1,
-    type: "Project",
-    status: "in-progress",
-    dueDate: "2024-09-10",
-    bidHours: 344.0,
-    actualHours: 119.88,
-    level: 0,
-    expanded: true,
-    children: [
-      {
-        id: "129",
-        number: 2,
-        type: "Sequence",
-        status: "in-progress",
-        bidHours: 4.0,
-        actualHours: 0.97,
-        level: 1,
-        expanded: true,
-        children: [
-          {
-            id: "060",
-            number: 3,
-            type: "Shot",
-            status: "in-progress",
-            bidHours: 4.0,
-            actualHours: 0.97,
-            level: 2,
-            expanded: true,
-            children: [
-              {
-                id: "tracking-1",
-                number: 4,
-                type: "Task (CamTrack)",
-                status: "completed",
-                assignee: "Sami Brahem, Ta...",
-                description: "Focal length : 35mm / Camera model : MONSTRO 8K VV",
-                bidHours: 4.0,
-                actualHours: 0.97,
-                level: 3,
-                icon: "tracking",
-              },
-            ],
-          },
-        ],
-      },
-      {
-        id: "131",
-        number: 5,
-        type: "Sequence",
-        status: "in-progress",
-        dueDate: "2024-09-03",
-        bidHours: 23.0,
-        actualHours: 1.05,
-        level: 1,
-        expanded: true,
-        children: [
-          {
-            id: "014",
-            number: 6,
-            type: "Shot",
-            status: "in-progress",
-            dueDate: "2024-08-30",
-            bidHours: 8.0,
-            actualHours: 0.02,
-            level: 2,
-            expanded: true,
-            children: [
-              {
-                id: "tracking-2",
-                number: 7,
-                type: "Task (CamTrack)",
-                status: "completed",
-                assignee: "Taeib Gastli",
-                dueDate: "2024-08-30",
-                bidHours: 8.0,
-                actualHours: 0.02,
-                level: 3,
-                icon: "tracking",
-              },
-            ],
-          },
-          {
-            id: "015",
-            number: 8,
-            type: "Shot",
-            status: "in-progress",
-            dueDate: "2024-09-03",
-            bidHours: 15.0,
-            actualHours: 1.02,
-            level: 2,
-            expanded: true,
-            children: [
-              {
-                id: "tracking-3",
-                number: 9,
-                type: "Task (CamTrack)",
-                status: "completed",
-                assignee: "Taeib Gastli",
-                dueDate: "2024-09-03",
-                bidHours: 15.0,
-                actualHours: 1.02,
-                level: 3,
-                icon: "tracking",
-              },
-            ],
-          },
-        ],
-      },
-      {
-        id: "132",
-        number: 10,
-        type: "Sequence",
-        status: "pending",
-        dueDate: "2024-09-04",
-        bidHours: 38.0,
-        actualHours: 32.89,
-        level: 1,
-        expanded: true,
-        children: [
-          {
-            id: "040",
-            number: 11,
-            type: "Shot",
-            status: "omitted",
-            bidHours: 4.0,
-            actualHours: 4.0,
-            level: 2,
-            expanded: true,
-            children: [
-              {
-                id: "tracking-4",
-                number: 12,
-                type: "Task (CamTrack)",
-                status: "omitted",
-                bidHours: 4.0,
-                actualHours: 4.0,
-                level: 3,
-                icon: "tracking",
-              },
-            ],
-          },
-          {
-            id: "050",
-            number: 13,
-            type: "Shot",
-            status: "in-progress",
-            bidHours: 5.0,
-            actualHours: 5.0,
-            level: 2,
-            expanded: true,
-            children: [
-              {
-                id: "tracking-5",
-                number: 14,
-                type: "Task (CamTrack)",
-                status: "completed",
-                assignee: "Taeib Gastli",
-                description: "Focal length : 65mm / Camera model : Red MONSTRO 8K VV",
-                bidHours: 5.0,
-                actualHours: 5.0,
-                level: 3,
-                icon: "tracking",
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-]
+
 
 export default function ProjectManagementInterface() {
-  const [, setProjectData] = useState(null);
+  const [ProjectData, setProjectData] = useState<Task[]>();
   const [filterText, setFilterText] = useState("");
     const { selectedProject } = useProject();
 
@@ -231,7 +59,9 @@ export default function ProjectManagementInterface() {
     const fetchProject = async () => {
       try {
       const response = await fetch(`http://localhost:8080/api/projects/${encodeURIComponent(selectedProject.id)}`)
-        setProjectData(await response.json());
+      const data = await response.json(); // This should already be in Task[] shape
+      console.log("Fetched project tasks:", data);
+      setProjectData(data); // Set flat list directly
       } catch (error) {
         console.error("Failed to fetch project:", error);
       }
@@ -335,7 +165,10 @@ export default function ProjectManagementInterface() {
             </Box>
 
             {/* Task Table Component */}
-            <TaskTable tasks={mockTasks} />
+            
+           {Array.isArray(ProjectData) && ProjectData.length > 0 && (
+  <TaskTable tasks={ProjectData} />
+)}
 
           </Box>
         </Box>

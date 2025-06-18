@@ -23,6 +23,7 @@ router.get('/projects', async (req, res) => {
 
 
 // Get detailed info for a single project by name
+// Get detailed info for a single project by name
 router.get('/projects/:projectName', async (req, res) => {
   try {
     const { projectName } = req.params;
@@ -31,27 +32,29 @@ router.get('/projects/:projectName', async (req, res) => {
 
     const sessionInstance = await session;
 
-    // Query for the project entity with more detailed fields
-    const projectQuery = await (await session).query(
-  `select 
-    id, 
-    name, 
-    description, 
-    status.name, 
-    priority.name, 
-    type.name, 
-    start_date, 
-    end_date, 
-    time_logged, 
-    bid, 
-    bid_time_logged_difference, 
-    created_at, 
-    created_by.username, 
-    project.name, 
-    parent.name 
-    from Task 
-    where project.id is ${projectName}`
-);
+    // Query for the project entity with detailed fields including parent.name
+    const projectQuery = await sessionInstance.query(
+      `select 
+        id, 
+        name, 
+        description, 
+        status.name, 
+        priority.name, 
+        type.name, 
+        start_date, 
+        end_date, 
+        time_logged, 
+        bid, 
+        bid_time_logged_difference, 
+        created_at, 
+        created_by.username, 
+        project.name, 
+        parent.name
+      from Task 
+      where project.id is ${projectName}`
+    );
+
+    console.log('Raw query data:', projectQuery.data);
 
     const project = projectQuery.data[0];
 
@@ -59,15 +62,31 @@ router.get('/projects/:projectName', async (req, res) => {
       return res.status(404).json({ error: 'Tasks not found' });
     }
 
-    console.log("Task found:", JSON.stringify(project, null, 2));
+    // Map tasks with proper nested field access and safe checks
+    const tasks = projectQuery.data.map((row, index) => ({
+      id: row.id,
+      number: index + 1,
+      type: `Task (${row.type?.name || "Unknown"})`,
+      status: row.status?.name?.toLowerCase() || "pending",
+      assignee: row.created_by?.username || "Unassigned",
+      description: `Shot: ${row.parent?.name || "Unknown"}`,
+      dueDate: row.end_date ? new Date(row.end_date).toISOString().split("T")[0] : null,
+      bidHours: row.bid ? row.bid / 3600 : 0,
+      actualHours: row.time_logged ? row.time_logged / 3600 : 0,
+      level: 0,
+      icon: row.type?.name?.toLowerCase() === "camtrack" ? "tracking" : undefined,
+    }));
 
-    res.json(projectQuery.data);
+    console.log('Processed tasks:', tasks);
+
+    res.json(tasks);
 
   } catch (err) {
     console.error('Error fetching project details:', err);
     res.status(500).json({ error: 'Failed to fetch project details' });
   }
 });
+
 
 
 export default router;
