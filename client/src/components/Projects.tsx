@@ -1,12 +1,13 @@
 "use client"
 
 import { Box, TextField, Typography, ThemeProvider, createTheme, CssBaseline } from "@mui/material"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Sidebar from "./Project-components/Sidebar"
 import SecondaryNavigation from "./Project-components/SecondaryNavigation"
 import Toolbar from "./Project-components/Toolbar"
 import TaskTable, { type Task } from "./Project-components/TaskTable"
 import React from "react"
+import { useProject } from '../contexts/ProjectContext';
 
 // Enhanced dark theme matching the design
 const darkTheme = createTheme({
@@ -220,11 +221,24 @@ const mockTasks: Task[] = [
 ]
 
 export default function ProjectManagementInterface() {
+  const [, setProjectData] = useState(null);
+  const [filterText, setFilterText] = useState("");
+    const { selectedProject } = useProject();
 
+  useEffect(() => {
+    if (!selectedProject) return; // only fetch if projectName exists
 
-     
-  
-  const [filterText, setFilterText] = useState("")
+    const fetchProject = async () => {
+      try {
+      const response = await fetch(`http://localhost:8080/api/projects/${encodeURIComponent(selectedProject.id)}`)
+        setProjectData(await response.json());
+      } catch (error) {
+        console.error("Failed to fetch project:", error);
+      }
+    };
+
+    fetchProject();
+  }, [selectedProject]);
 
   return (
     <ThemeProvider theme={darkTheme}>
@@ -235,7 +249,6 @@ export default function ProjectManagementInterface() {
         <Box sx={{ display: "flex", flexGrow: 1, overflow: "hidden" }}>
           {/* Sidebar Component */}
           <Sidebar />
-
           {/* Main Content */}
           <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
             {/* Secondary Navigation */}
@@ -289,7 +302,7 @@ export default function ProjectManagementInterface() {
                     Count (task)
                   </Typography>
                   <Typography variant="body2" color="#718096" sx={{ fontSize: "13px" }}>
-                    57
+                   57
                   </Typography>
                 </Box>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
