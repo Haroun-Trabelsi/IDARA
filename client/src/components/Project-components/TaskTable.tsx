@@ -32,6 +32,7 @@ export interface Task {
   type: string; // e.g., "Task (CamTrack)"
   status: "completed" | "in-progress" | "omitted" | "pending";
   assignee?: string;
+  sequence?: string;
   description?: string;
   dueDate?: string;
   bidHours: number;
@@ -292,7 +293,7 @@ export default function TaskTable({ tasks }: TaskTableProps) {
                     </IconButton>
                   
                   <Typography variant="body2" sx={{ color: "#e2e8f0", fontSize: "13px" }}>
-                    {task.id}
+                  {task.sequence || ""} / {task.description || ""} / {task.icon || ''}
                   </Typography>
                 </Box>
               </TableCell>
@@ -331,7 +332,7 @@ export default function TaskTable({ tasks }: TaskTableProps) {
 
               <TableCell sx={{ p: 1, borderBottom: "1px solid #2d3748" }}>
                 <Typography variant="body2" noWrap sx={{ color: "#a0aec0", fontSize: "13px" }}>
-                  {task.description || ""}
+                  
                 </Typography>
               </TableCell>
 

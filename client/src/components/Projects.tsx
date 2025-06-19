@@ -166,8 +166,12 @@ export default function ProjectManagementInterface() {
 
             {/* Task Table Component */}
             
-           {Array.isArray(ProjectData) && ProjectData.length > 0 && (
+{Array.isArray(ProjectData) && ProjectData.length > 0 ? (
   <TaskTable tasks={ProjectData} />
+) : (
+  <Typography variant="body2" color="textSecondary">
+    No tasks available for this project.
+  </Typography>
 )}
 
           </Box>

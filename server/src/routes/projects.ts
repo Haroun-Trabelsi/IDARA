@@ -1,6 +1,5 @@
 import express from 'express';
 import { getFtrackSession } from '../utils/session';
-
 const router = express.Router();
 const session = getFtrackSession();
 
@@ -27,65 +26,97 @@ router.get('/projects', async (req, res) => {
 router.get('/projects/:projectName', async (req, res) => {
   try {
     const { projectName } = req.params;
-
-    console.log(`Fetching details for Tasks with project id : ${projectName}`);
+    console.log(`Fetching tasks for project ID: ${projectName}`);
 
     const sessionInstance = await session;
 
-    // Query for the project entity with detailed fields including parent.name
-    const projectQuery = await sessionInstance.query(
-      `select 
-        id, 
-        name, 
-        description, 
-        status.name, 
-        priority.name, 
-        type.name, 
-        start_date, 
-        end_date, 
-        time_logged, 
-        bid, 
-        bid_time_logged_difference, 
-        created_at, 
-        created_by.username, 
-        project.name, 
-        parent.name
-      from Task 
-      where project.id is ${projectName}`
-    );
+    // 1. Get task data with assignments (only user IDs here)
+    const taskQuery = await sessionInstance.query(`
+      select 
+        id,
+        name,
+        type.name,
+        status.name,
+        parent.name,
+        parent.parent.name,
+        project.name,
+        created_at,
+        start_date,
+        end_date,
+        time_logged,
+        bid,
+        assignments.resource.id
+      from Task
+      where project.id is ${projectName}
+    `);
 
-    console.log('Raw query data:', projectQuery.data);
+    const tasksRaw = taskQuery.data;
 
-    const project = projectQuery.data[0];
+    // 2. Collect unique user IDs from assignments
+    const userIdSet = new Set<string>();
+    tasksRaw.forEach(task => {
+      if (Array.isArray(task.assignments)) {
+        task.assignments.forEach(assign => {
+          if (assign.resource?.id) userIdSet.add(assign.resource.id);
+        });
+      }
+    });
 
-    if (!project) {
-      return res.status(404).json({ error: 'Tasks not found' });
+    const userIds = Array.from(userIdSet);
+
+    // 3. Query user details
+    let usersById: Record<string, string> = {};
+    if (userIds.length > 0) {
+      const userQuery = await sessionInstance.query(`
+        select id, first_name, last_name, username from User where id in (${userIds.join(',')})
+      `);
+      usersById = Object.fromEntries(
+        userQuery.data.map((u: any) => [
+          u.id,
+          u.first_name || u.last_name
+            ? `${u.first_name || ''} ${u.last_name || ''}`.trim()
+            : u.username,
+        ])
+      );
     }
 
-    // Map tasks with proper nested field access and safe checks
-    const tasks = projectQuery.data.map((row, index) => ({
-      id: row.id,
-      number: index + 1,
-      type: `Task (${row.type?.name || "Unknown"})`,
-      status: row.status?.name?.toLowerCase() || "pending",
-      assignee: row.created_by?.username || "Unassigned",
-      description: `Shot: ${row.parent?.name || "Unknown"}`,
-      dueDate: row.end_date ? new Date(row.end_date).toISOString().split("T")[0] : null,
-      bidHours: row.bid ? row.bid / 3600 : 0,
-      actualHours: row.time_logged ? row.time_logged / 3600 : 0,
-      level: 0,
-      icon: row.type?.name?.toLowerCase() === "camtrack" ? "tracking" : undefined,
-    }));
+    // 4. Format tasks with mapped assignees
+    const tasks = tasksRaw.map((row, index) => {
+      const assignees =
+        Array.isArray(row.assignments) && row.assignments.length > 0
+          ? row.assignments
+              .map(a => usersById[a.resource?.id] || null)
+              .filter(Boolean)
+              .join(', ')
+          : 'Unassigned';
 
-    console.log('Processed tasks:', tasks);
+      return {
+        id: row.id,
+        number: index + 1,
+        type: `Task (${row.type?.name || 'Unknown'})`,
+        status: row.status?.name?.toLowerCase() || 'pending',
+        assignee: assignees,
+        sequence: row.parent?.parent?.name || 'Unassigned',
+        description: row.parent?.name || 'Unknown',
+        dueDate: row.end_date
+          ? new Date(row.end_date).toISOString().split('T')[0]
+          : null,
+        bidHours: row.bid ? row.bid / 3600 : 0,
+        actualHours: row.time_logged ? row.time_logged / 3600 : 0,
+        level: 0,
+        icon: row.type?.name?.toLowerCase() === 'camtrack' ? 'tracking' : undefined,
+      };
+    });
 
+    console.log('Final tasks with assignees:', tasks);
     res.json(tasks);
-
   } catch (err) {
     console.error('Error fetching project details:', err);
     res.status(500).json({ error: 'Failed to fetch project details' });
   }
 });
+
+
 
 
 
