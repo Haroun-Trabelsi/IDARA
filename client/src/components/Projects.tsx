@@ -1,7 +1,7 @@
 "use client"
 
 import { Box, TextField, Typography, ThemeProvider, createTheme, CssBaseline } from "@mui/material"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Sidebar from "./Project-components/Sidebar"
 import SecondaryNavigation from "./Project-components/SecondaryNavigation"
 import Toolbar from "./Project-components/Toolbar"
@@ -69,7 +69,15 @@ export default function ProjectManagementInterface() {
 
     fetchProject();
   }, [selectedProject]);
-
+  const sidebarItems = useMemo(() => {
+    if (!ProjectData) return []
+    const uniqueSequences = Array.from(new Set(ProjectData.map(task => task.sequence)))
+    return uniqueSequences.map(seq => ({
+      id: seq,
+      progress: 100,
+      color: "#10b981", // Green for "done"
+    }))
+  }, [ProjectData])
   return (
     <ThemeProvider theme={darkTheme}>
       <CssBaseline />
@@ -78,7 +86,8 @@ export default function ProjectManagementInterface() {
 
         <Box sx={{ display: "flex", flexGrow: 1, overflow: "hidden" }}>
           {/* Sidebar Component */}
-          <Sidebar />
+          <Sidebar items={sidebarItems} />
+
           {/* Main Content */}
           <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
             {/* Secondary Navigation */}

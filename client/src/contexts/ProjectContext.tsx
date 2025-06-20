@@ -12,15 +12,12 @@ type ProjectContextType = {
   setSelectedProject: (project: Project | null) => void;
 };
 
-// 2. Create context with correct initial type
 const ProjectContext = createContext<ProjectContextType | null>(null);
 
-// 3. Define props for the provider
 type ProjectProviderProps = {
   children: ReactNode;
 };
 
-// 4. Create the provider
 export const ProjectProvider = ({ children }: ProjectProviderProps) => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
@@ -31,7 +28,6 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
   );
 };
 
-// 5. Create a typed hook to consume the context
 export const useProject = () => {
   const context = useContext(ProjectContext);
   if (!context) {

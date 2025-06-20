@@ -21,8 +21,6 @@ router.get('/projects', async (req, res) => {
 });
 
 
-// Get detailed info for a single project by name
-// Get detailed info for a single project by name
 router.get('/projects/:projectName', async (req, res) => {
   try {
     const { projectName } = req.params;
@@ -52,7 +50,6 @@ router.get('/projects/:projectName', async (req, res) => {
 
     const tasksRaw = taskQuery.data;
 
-    // 2. Collect unique user IDs from assignments
     const userIdSet = new Set<string>();
     tasksRaw.forEach(task => {
       if (Array.isArray(task.assignments)) {
