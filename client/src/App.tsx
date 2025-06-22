@@ -4,7 +4,6 @@ import Header from 'components/Header'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import 'styles/ReactWelcome.css'
 import { ProjectProvider } from './contexts/ProjectContext';
-import About from 'components/About'
 import ProjectManagementInterface from 'components/Projects'
 
 const App = () => {
@@ -18,7 +17,6 @@ const App = () => {
           <Route path="/Projects" element={<ProjectManagementInterface />} />
         </Routes>
         <AuthModal />
-        <About />
       </div>
     </BrowserRouter>
     </ProjectProvider>

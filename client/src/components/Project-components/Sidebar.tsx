@@ -1,7 +1,6 @@
 "use client"
 
 import { Drawer, Box, Typography, List, ListItem, ListItemIcon, ListItemText, LinearProgress } from "@mui/material"
-import { Home } from "@mui/icons-material"
 import React from "react"
 
 interface SidebarItem {
@@ -32,16 +31,6 @@ export default function Sidebar({items}: SidebarProps) {
       }}
     >
       <Box sx={{ p: 2 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
-          <Home fontSize="small" sx={{ color: "#a0aec0" }} />
-          <Typography variant="body2" fontWeight="medium" color="#e2e8f0">
-            7760
-          </Typography>
-        </Box>
-
-        <Typography variant="body2" color="#718096" sx={{ mb: 1, fontSize: "12px" }}>
-          Team
-        </Typography>
 
         <Typography variant="body2" color="#718096" sx={{ mb: 2, fontSize: "12px" }}>
           Lists

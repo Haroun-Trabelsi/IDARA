@@ -1,6 +1,6 @@
 "use client"
 
-import { Box, Button, Typography } from "@mui/material"
+import { Box, Button } from "@mui/material"
 import { KeyboardArrowDown } from "@mui/icons-material"
 import React from "react"
 
@@ -64,9 +64,6 @@ export default function SecondaryNavigation() {
             Dashboards
           </Button>
         </Box>
-        <Typography variant="body2" color="#718096" sx={{ fontSize: "13px" }}>
-          7760
-        </Typography>
       </Box>
     </Box>
   )

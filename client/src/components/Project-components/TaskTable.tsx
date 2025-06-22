@@ -14,15 +14,12 @@ import {
   Typography,
   Box,
   IconButton,
+  Checkbox,
+  Button,
 } from "@mui/material"
 import {
   KeyboardArrowDown,
   KeyboardArrowRight,
-  CheckBox,
-  Movie,
-  PhotoCamera,
-  FilePresent,
-  Home,
 } from "@mui/icons-material"
 import React from "react"
 
@@ -47,7 +44,7 @@ interface TaskTableProps {
 }
 
 export default function TaskTable({ tasks }: TaskTableProps) {
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set(["7760", "129", "131", "132"]))
+const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set(["0", "129", "131", "132"]))
 
   const toggleExpanded = (id: string) => {
     const newExpanded = new Set(expandedItems)
@@ -73,6 +70,15 @@ export default function TaskTable({ tasks }: TaskTableProps) {
         return "#6b7280"
     }
   }
+const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
+
+const toggleTaskSelection = (taskId: string) => {
+  setSelectedTasks(prev => {
+    const updated = new Set(prev);
+    updated.has(taskId) ? updated.delete(taskId) : updated.add(taskId);
+    return updated;
+  });
+};
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -85,7 +91,7 @@ export default function TaskTable({ tasks }: TaskTableProps) {
     }
   }
 
-  const getTaskIcon = (type: string, icon?: string) => {
+  /*const getTaskIcon = (type: string, icon?: string) => {
     if (icon === "tracking") return <CheckBox fontSize="small" sx={{ color: "#a0aec0" }} />
     switch (type) {
       case "Project":
@@ -97,7 +103,7 @@ export default function TaskTable({ tasks }: TaskTableProps) {
       default:
         return <FilePresent fontSize="small" sx={{ color: "#a0aec0" }} />
     }
-  }
+  }*/
 
   const flattenTasks = (tasks: Task[]): Task[] => {
     const result: Task[] = []
@@ -111,8 +117,15 @@ export default function TaskTable({ tasks }: TaskTableProps) {
   }
 
   const flatTasks = flattenTasks(tasks)
+  const selectedTaskObjects = flatTasks.filter(task => selectedTasks.has(task.id));
+
+  function sendToFunction(selectedTaskObjects: Task[]): void {
+    console.log(selectedTaskObjects)
+    throw new Error("Function not implemented.")
+  }
 
   return (
+    <>
     <TableContainer
       component={Paper}
       sx={{
@@ -262,20 +275,19 @@ export default function TaskTable({ tasks }: TaskTableProps) {
               </TableCell>
 
               <TableCell sx={{ p: 1, borderBottom: "1px solid #2d3748" }}>
-                <Box
-                  sx={{
-                    width: 32,
-                    height: 32,
-                    bgcolor: "#2d3748",
-                    borderRadius: 1,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  {getTaskIcon(task.type, task.icon)}
-                </Box>
-              </TableCell>
+  <Checkbox
+    checked={selectedTasks.has(task.id)}
+    onChange={() => toggleTaskSelection(task.id)}
+    sx={{
+      color: "#a0aec0",
+      '&.Mui-checked': {
+        color: "#63b3ed",
+      },
+      p: 0.5,
+    }}
+  />
+</TableCell>
+
 
               <TableCell sx={{ p: 1, borderBottom: "1px solid #2d3748" }}>
                 <Box sx={{ display: "flex", alignItems: "center", pl: task.level * 2.5 }}>
@@ -357,6 +369,35 @@ export default function TaskTable({ tasks }: TaskTableProps) {
           ))}
         </TableBody>
       </Table>
+
     </TableContainer>
+    <Box
+  sx={{
+    position: "fixed",
+    bottom: 24,
+    left: "50%",
+    transform: "translateX(-50%)",
+    zIndex: 10,
+  }}
+>
+  <Button
+    variant="contained"
+    color="primary"
+    size="medium"
+    disabled={selectedTasks.size === 0}
+    onClick={() => sendToFunction(selectedTaskObjects)}
+    sx={{
+      px: 4,
+      py: 1.5,
+      fontSize: "14px",
+      borderRadius: 2,
+      boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.15)",
+    }}
+  >
+    Estimate Selected ({selectedTasks.size})
+  </Button>
+</Box>
+</>
+    
   )
 }
