@@ -8,7 +8,7 @@
     "client": "react-scripts start",
     "client:build": "react-scripts build",
     "electron": "wait-on http://localhost:3000/ && electron .",
-    "dev": "concurrently \"npm run server\" \"npm run client\" \"npm run electron\"",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
     "build": "npm run client:build"
   },
   "build": {

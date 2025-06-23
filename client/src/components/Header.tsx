@@ -1,21 +1,22 @@
-"use client"
 
 import React, { useState, Fragment, MouseEventHandler, useEffect } from "react"
 import { AppBar, Toolbar, Button, IconButton, Box, Menu, MenuItem, Avatar, Popover, List, ListSubheader, ListItemButton } from "@mui/material"
-import { KeyboardArrowDown, Bookmark, Notifications, Settings, Search, ViewList } from "@mui/icons-material"
+import { KeyboardArrowDown, Notifications, Settings, Search, ViewList } from "@mui/icons-material"
 import { useAuth } from 'contexts/AuthContext'
 import { useModalStore } from 'store/useModalStore'
 import OnlineIndicator from 'components/OnlineIndicator'
-
+import { useProject } from '../contexts/ProjectContext';
+import { Link } from "react-router-dom"
+ 
 export default function Header() {
   const { isLoggedIn, account, logout } = useAuth()
   const { setCurrentModal } = useModalStore()
+  const { setSelectedProject } = useProject();
 
   const [projectsAnchorEl, setProjectsAnchorEl] = useState<null | HTMLElement>(null)
-  const [bookmarksAnchorEl, setBookmarksAnchorEl] = useState<null | HTMLElement>(null)
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const [popover, setPopover] = useState(false)
-  const [projects, setProjects] = useState<string[]>([])
+  const [projects, setProjects] = useState<{ id: string; name: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -92,6 +93,7 @@ export default function Header() {
               } 
             }}
           >
+
             {loading ? (
               <MenuItem sx={{ color: "#e2e8f0" }}>Loading projects...</MenuItem>
             ) : error ? (
@@ -99,32 +101,29 @@ export default function Header() {
             ) : projects.length === 0 ? (
               <MenuItem sx={{ color: "#e2e8f0" }}>No projects found</MenuItem>
             ) : (
-              projects.map((project, index) => (
-                <MenuItem 
-                  key={index} 
-                  sx={{ color: "#e2e8f0" }}
-                  onClick={() => {
-                    // Handle project selection here
-                    setProjectsAnchorEl(null)
-                  }}
-                >
-                  {project}
-                </MenuItem>
-              ))
-            )}
+
+              projects.map((project) => (
+                <Link to="/Projects" key={project.id} style={{ textDecoration: 'none' }}>
+                    <MenuItem
+                      sx={{ color: "#e2e8f0" }}
+                      onClick={() => {
+                        setProjectsAnchorEl(null);
+                        setSelectedProject(project);
+                      }}
+                    >
+                      {project.name}
+                    </MenuItem>
+                    </Link>
+                    )
+                    )
+                  )
+                  }
           </Menu>
 
           <Button sx={{ color: "#e2e8f0", textTransform: "none", fontSize: "14px", fontWeight: 400, "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)" } }}>
-            My Tasks
+            About U
           </Button>
-
-          <Button startIcon={<Bookmark sx={{ fontSize: "16px" }} />} endIcon={<KeyboardArrowDown sx={{ fontSize: "16px" }} />} onClick={(e) => setBookmarksAnchorEl(e.currentTarget)} sx={{ color: "#e2e8f0", textTransform: "none", fontSize: "14px", fontWeight: 400, "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)" } }}>
-            Bookmarks
-          </Button>
-          <Menu anchorEl={bookmarksAnchorEl} open={Boolean(bookmarksAnchorEl)} onClose={() => setBookmarksAnchorEl(null)} PaperProps={{ sx: { bgcolor: "#2d3748", border: "1px solid #4a5568" } }}>
-            <MenuItem sx={{ color: "#e2e8f0" }}>Bookmark 1</MenuItem>
-            <MenuItem sx={{ color: "#e2e8f0" }}>Bookmark 2</MenuItem>
-          </Menu>
+          
         </Box>
 
         {/* Right Icons */}

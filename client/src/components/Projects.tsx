@@ -1,12 +1,13 @@
 "use client"
 
 import { Box, TextField, Typography, ThemeProvider, createTheme, CssBaseline } from "@mui/material"
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Sidebar from "./Project-components/Sidebar"
 import SecondaryNavigation from "./Project-components/SecondaryNavigation"
 import Toolbar from "./Project-components/Toolbar"
-import TaskTable, { type Task } from "./Project-components/TaskTable"
+import TaskTable, {  Task } from "./Project-components/TaskTable"
 import React from "react"
+import { useProject } from '../contexts/ProjectContext';
 
 // Enhanced dark theme matching the design
 const darkTheme = createTheme({
@@ -45,187 +46,38 @@ const darkTheme = createTheme({
   },
 })
 
-const mockTasks: Task[] = [
-  {
-    id: "7760",
-    number: 1,
-    type: "Project",
-    status: "in-progress",
-    dueDate: "2024-09-10",
-    bidHours: 344.0,
-    actualHours: 119.88,
-    level: 0,
-    expanded: true,
-    children: [
-      {
-        id: "129",
-        number: 2,
-        type: "Sequence",
-        status: "in-progress",
-        bidHours: 4.0,
-        actualHours: 0.97,
-        level: 1,
-        expanded: true,
-        children: [
-          {
-            id: "060",
-            number: 3,
-            type: "Shot",
-            status: "in-progress",
-            bidHours: 4.0,
-            actualHours: 0.97,
-            level: 2,
-            expanded: true,
-            children: [
-              {
-                id: "tracking-1",
-                number: 4,
-                type: "Task (CamTrack)",
-                status: "completed",
-                assignee: "Sami Brahem, Ta...",
-                description: "Focal length : 35mm / Camera model : MONSTRO 8K VV",
-                bidHours: 4.0,
-                actualHours: 0.97,
-                level: 3,
-                icon: "tracking",
-              },
-            ],
-          },
-        ],
-      },
-      {
-        id: "131",
-        number: 5,
-        type: "Sequence",
-        status: "in-progress",
-        dueDate: "2024-09-03",
-        bidHours: 23.0,
-        actualHours: 1.05,
-        level: 1,
-        expanded: true,
-        children: [
-          {
-            id: "014",
-            number: 6,
-            type: "Shot",
-            status: "in-progress",
-            dueDate: "2024-08-30",
-            bidHours: 8.0,
-            actualHours: 0.02,
-            level: 2,
-            expanded: true,
-            children: [
-              {
-                id: "tracking-2",
-                number: 7,
-                type: "Task (CamTrack)",
-                status: "completed",
-                assignee: "Taeib Gastli",
-                dueDate: "2024-08-30",
-                bidHours: 8.0,
-                actualHours: 0.02,
-                level: 3,
-                icon: "tracking",
-              },
-            ],
-          },
-          {
-            id: "015",
-            number: 8,
-            type: "Shot",
-            status: "in-progress",
-            dueDate: "2024-09-03",
-            bidHours: 15.0,
-            actualHours: 1.02,
-            level: 2,
-            expanded: true,
-            children: [
-              {
-                id: "tracking-3",
-                number: 9,
-                type: "Task (CamTrack)",
-                status: "completed",
-                assignee: "Taeib Gastli",
-                dueDate: "2024-09-03",
-                bidHours: 15.0,
-                actualHours: 1.02,
-                level: 3,
-                icon: "tracking",
-              },
-            ],
-          },
-        ],
-      },
-      {
-        id: "132",
-        number: 10,
-        type: "Sequence",
-        status: "pending",
-        dueDate: "2024-09-04",
-        bidHours: 38.0,
-        actualHours: 32.89,
-        level: 1,
-        expanded: true,
-        children: [
-          {
-            id: "040",
-            number: 11,
-            type: "Shot",
-            status: "omitted",
-            bidHours: 4.0,
-            actualHours: 4.0,
-            level: 2,
-            expanded: true,
-            children: [
-              {
-                id: "tracking-4",
-                number: 12,
-                type: "Task (CamTrack)",
-                status: "omitted",
-                bidHours: 4.0,
-                actualHours: 4.0,
-                level: 3,
-                icon: "tracking",
-              },
-            ],
-          },
-          {
-            id: "050",
-            number: 13,
-            type: "Shot",
-            status: "in-progress",
-            bidHours: 5.0,
-            actualHours: 5.0,
-            level: 2,
-            expanded: true,
-            children: [
-              {
-                id: "tracking-5",
-                number: 14,
-                type: "Task (CamTrack)",
-                status: "completed",
-                assignee: "Taeib Gastli",
-                description: "Focal length : 65mm / Camera model : Red MONSTRO 8K VV",
-                bidHours: 5.0,
-                actualHours: 5.0,
-                level: 3,
-                icon: "tracking",
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-]
+
 
 export default function ProjectManagementInterface() {
+  const [ProjectData, setProjectData] = useState<Task[]>();
+  const [filterText, setFilterText] = useState("");
+    const { selectedProject } = useProject();
 
+  useEffect(() => {
+    if (!selectedProject) return; // only fetch if projectName exists
 
-     
-  
-  const [filterText, setFilterText] = useState("")
+    const fetchProject = async () => {
+      try {
+      const response = await fetch(`http://localhost:8080/api/projects/${encodeURIComponent(selectedProject.id)}`)
+      const data = await response.json(); // This should already be in Task[] shape
+      console.log("Fetched project tasks:", data);
+      setProjectData(data); // Set flat list directly
+      } catch (error) {
+        console.error("Failed to fetch project:", error);
+      }
+    };
 
+    fetchProject();
+  }, [selectedProject]);
+  const sidebarItems = useMemo(() => {
+    if (!ProjectData) return []
+    const uniqueSequences = Array.from(new Set(ProjectData.map(task => task.sequence)))
+    return uniqueSequences.map(seq => ({
+      id: seq,
+      progress: 100,
+      color: "#10b981", // Green for "done"
+    }))
+  }, [ProjectData])
   return (
     <ThemeProvider theme={darkTheme}>
       <CssBaseline />
@@ -234,7 +86,7 @@ export default function ProjectManagementInterface() {
 
         <Box sx={{ display: "flex", flexGrow: 1, overflow: "hidden" }}>
           {/* Sidebar Component */}
-          <Sidebar />
+          <Sidebar items={sidebarItems} />
 
           {/* Main Content */}
           <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
@@ -289,7 +141,7 @@ export default function ProjectManagementInterface() {
                     Count (task)
                   </Typography>
                   <Typography variant="body2" color="#718096" sx={{ fontSize: "13px" }}>
-                    57
+                   57
                   </Typography>
                 </Box>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -322,7 +174,14 @@ export default function ProjectManagementInterface() {
             </Box>
 
             {/* Task Table Component */}
-            <TaskTable tasks={mockTasks} />
+            
+{Array.isArray(ProjectData) && ProjectData.length > 0 ? (
+  <TaskTable tasks={ProjectData} />
+) : (
+  <Typography variant="body2" color="textSecondary">
+    No tasks available for this project.
+  </Typography>
+)}
 
           </Box>
         </Box>
