@@ -16,14 +16,16 @@ import {
   IconButton,
   Checkbox,
   Button,
+  Dialog,
+  DialogContent,
 } from "@mui/material"
 import {
-  KeyboardArrowDown,
-  KeyboardArrowRight,
+  PlayCircleOutline,
 } from "@mui/icons-material"
 import React from "react"
 
 export interface Task {
+  videos: any
   id: string;
   number: number;
   type: string; // e.g., "Task (CamTrack)"
@@ -39,22 +41,16 @@ export interface Task {
 }
 
 
+
+
 interface TaskTableProps {
-  tasks: Task[]
+  tasks: Task[];
+  setTasks: React.Dispatch<React.SetStateAction<Task[] | undefined>>;
 }
 
-export default function TaskTable({ tasks }: TaskTableProps) {
-const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set(["0", "129", "131", "132"]))
 
-  const toggleExpanded = (id: string) => {
-    const newExpanded = new Set(expandedItems)
-    if (newExpanded.has(id)) {
-      newExpanded.delete(id)
-    } else {
-      newExpanded.add(id)
-    }
-    setExpandedItems(newExpanded)
-  }
+export default function TaskTable({ tasks, setTasks }: TaskTableProps) {
+
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -71,6 +67,9 @@ const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set(["0", "1
     }
   }
 const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
+const [videoModalOpen, setVideoModalOpen] = useState(false);
+const [videoOptions, setVideoOptions] = useState<any[]>([]);
+const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
 
 const toggleTaskSelection = (taskId: string) => {
   setSelectedTasks(prev => {
@@ -78,6 +77,24 @@ const toggleTaskSelection = (taskId: string) => {
     updated.has(taskId) ? updated.delete(taskId) : updated.add(taskId);
     return updated;
   });
+};
+const handleOpenVideoSelector = (taskId: string) => {
+  const task = tasks.find(t => t.id === taskId);
+  if (!task) return;
+  setVideoOptions(task.videos || []);
+  setActiveTaskId(taskId);
+  setVideoModalOpen(true);
+};
+
+const handleVideoSelect = (url: string) => {
+  setTasks((prev: Task[] | undefined) =>
+    (prev || []).map((task: Task) =>
+      task.id === activeTaskId ? { ...task, videos: [{ value: url }] } : task
+    )
+  );
+  setVideoModalOpen(false);
+  setVideoOptions([]);
+  setActiveTaskId(null);
 };
 
   const getStatusBadge = (status: string) => {
@@ -118,6 +135,17 @@ const toggleTaskSelection = (taskId: string) => {
 
   const flatTasks = flattenTasks(tasks)
   const selectedTaskObjects = flatTasks.filter(task => selectedTasks.has(task.id));
+const [videoUrl, setVideoUrl] = React.useState<string | null>(null);
+const [open, setOpen] = React.useState(false);
+
+const handleOpenVideo = (url: string) => {
+  setVideoUrl(url);
+  setOpen(true);
+};
+const handleCloseVideo = () => {
+  setOpen(false);
+  setVideoUrl(null);
+};
 
   function sendToFunction(selectedTaskObjects: Task[]): void {
     console.log(selectedTaskObjects)
@@ -292,21 +320,30 @@ const toggleTaskSelection = (taskId: string) => {
               <TableCell sx={{ p: 1, borderBottom: "1px solid #2d3748" }}>
                 <Box sx={{ display: "flex", alignItems: "center", pl: task.level * 2.5 }}>
                   
-                    <IconButton
-                      size="small"
-                      onClick={() => toggleExpanded(task.id)}
-                      sx={{ p: 0.5, mr: 0.5, color: "#a0aec0" }}
-                    >
-                      {expandedItems.has(task.id) ? (
-                        <KeyboardArrowDown fontSize="small" />
-                      ) : (
-                        <KeyboardArrowRight fontSize="small" />
-                      )}
-                    </IconButton>
-                  
-                  <Typography variant="body2" sx={{ color: "#e2e8f0", fontSize: "13px" }}>
-                  {task.sequence || ""} / {task.description || ""} / {task.icon || ''}
-                  </Typography>
+                    {task.videos && task.videos.length > 0 ? (
+    <IconButton
+      size="small"
+      onClick={() => handleOpenVideo(task.videos[0].value)}
+      sx={{ color: "#63b3ed", p: 0.5 }}
+      aria-label="play video"
+    >
+      <PlayCircleOutline fontSize="small" />
+    </IconButton>
+  ) : (
+    <Typography variant="body2" sx={{ color: "#a0aec0", fontSize: "13px" }}>
+      No video
+    </Typography>
+  )}
+    <Box
+      onClick={() => handleOpenVideoSelector(task.id)}
+      sx={{ ml: 1, cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
+    >
+      <Typography variant="body2" sx={{ color: "#e2e8f0", fontSize: "13px" }}>
+        {task.sequence || ""} / {task.description || ""} / {task.icon || ''}
+      </Typography>
+    </Box>
+
+
                 </Box>
               </TableCell>
 
@@ -369,6 +406,22 @@ const toggleTaskSelection = (taskId: string) => {
           ))}
         </TableBody>
       </Table>
+<Dialog open={open} onClose={handleCloseVideo} maxWidth="md" fullWidth>
+  <DialogContent sx={{ position: "relative", p: 0 }}>
+    <IconButton
+      onClick={handleCloseVideo}
+      sx={{ position: "absolute", top: 8, right: 8, color: "white", zIndex: 1 }}
+      aria-label="close"
+    >
+    </IconButton>
+    <video
+      src={videoUrl || ""}
+      controls
+      autoPlay
+      style={{ width: "100%", height: "auto", backgroundColor: "black" }}
+    />
+  </DialogContent>
+</Dialog>
 
     </TableContainer>
     <Box
@@ -397,6 +450,60 @@ const toggleTaskSelection = (taskId: string) => {
     Estimate Selected ({selectedTasks.size})
   </Button>
 </Box>
+<Dialog open={videoModalOpen} onClose={() => setVideoModalOpen(false)} maxWidth="md" fullWidth>
+  <DialogContent>
+    <Typography variant="h6" sx={{ mb: 2, color: "#e2e8f0" }}>
+      Select a version for task {activeTaskId}
+    </Typography>
+
+    {videoOptions.length === 0 ? (
+      <Typography variant="body2" sx={{ color: "#a0aec0" }}>
+        No videos available for this task.
+      </Typography>
+    ) : (
+      videoOptions.map((videoUrl, index) => (
+        <Box
+          key={index}
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 1,
+            mb: 3,
+            p: 2,
+            border: "1px solid #2d3748",
+            borderRadius: 1,
+            backgroundColor: "#1a202c",
+          }}
+        >
+          <video
+            src={videoUrl.value}
+            controls
+            style={{
+              width: "100%",
+              maxHeight: "300px",
+              borderRadius: "4px",
+              backgroundColor: "black",
+            }}
+          />
+
+          <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => handleVideoSelect(videoUrl.value)}
+            >
+              Use this
+            </Button>
+          </Box>
+        </Box>
+      ))
+    )}
+  </DialogContent>
+</Dialog>
+
+
+
+
 </>
     
   )

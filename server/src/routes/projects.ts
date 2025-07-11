@@ -24,97 +24,145 @@ router.get('/projects', async (req, res) => {
 router.get('/projects/:projectName', async (req, res) => {
   try {
     const { projectName } = req.params;
-    console.log(`Fetching tasks for project ID: ${projectName}`);
+    console.log(`📦 Fetching asset versions for project ID: ${projectName}`);
 
     const sessionInstance = await session;
 
-    // 1. Get task data with assignments (only user IDs here)
-    const taskQuery = await sessionInstance.query(`
-      select 
-        id,
-        name,
-        type.name,
+    const query = await sessionInstance.query(`
+      select
+        asset.name,
         status.name,
-        parent.name,
-        parent.parent.name,
-        project.name,
-        created_at,
-        start_date,
-        end_date,
-        time_logged,
-        bid,
-        assignments.resource.id
-      from Task
-      where project.id is ${projectName}
+        date,
+        components.name,
+        components.component_locations.url,
+        task.id,
+        task.name,
+        task.type.name,
+        task.status.name,
+        task.parent.name,
+        task.parent.parent.name,
+        task.end_date,
+        task.bid,
+        task.time_logged,
+        task.assignments.resource.id
+      from AssetVersion
+      where task.project.id is ${projectName}
     `);
 
-    const tasksRaw = taskQuery.data;
+    const raw = query.data;
 
-    const userIdSet = new Set<string>();
-    tasksRaw.forEach(task => {
-      if (Array.isArray(task.assignments)) {
-        task.assignments.forEach(assign => {
-          if (assign.resource?.id) userIdSet.add(assign.resource.id);
-        });
-      }
-    });
+    // Extract unique user IDs
+    const userIds = [
+      ...new Set(
+        raw.flatMap(v =>
+          v.task?.assignments?.map(a => a.resource?.id).filter(Boolean) || []
+        )
+      )
+    ];
 
-    const userIds = Array.from(userIdSet);
-
-    // 3. Query user details
+    // Resolve user names
     let usersById: Record<string, string> = {};
     if (userIds.length > 0) {
       const userQuery = await sessionInstance.query(`
         select id, first_name, last_name, username from User where id in (${userIds.join(',')})
       `);
       usersById = Object.fromEntries(
-        userQuery.data.map((u: any) => [
+        userQuery.data.map(u => [
           u.id,
-          u.first_name || u.last_name
-            ? `${u.first_name || ''} ${u.last_name || ''}`.trim()
-            : u.username,
+          `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.username
         ])
       );
     }
 
-    // 4. Format tasks with mapped assignees
-    const tasks = tasksRaw.map((row, index) => {
-      const assignees =
-        Array.isArray(row.assignments) && row.assignments.length > 0
-          ? row.assignments
-              .map(a => usersById[a.resource?.id] || null)
-              .filter(Boolean)
-              .join(', ')
-          : 'Unassigned';
+  const versionByTask: Record<string, any[]> = {};
+  const seenVersions: Record<string, Set<string>> = {};
 
-      return {
-        id: row.id,
-        number: index + 1,
-        type: `Task (${row.type?.name || 'Unknown'})`,
-        status: row.status?.name?.toLowerCase() || 'pending',
-        assignee: assignees,
-        sequence: row.parent?.parent?.name || 'Unassigned',
-        description: row.parent?.name || 'Unknown',
-        dueDate: row.end_date
-          ? new Date(row.end_date).toISOString().split('T')[0]
-          : null,
-        bidHours: row.bid ? row.bid / 3600 : 0,
-        actualHours: row.time_logged ? row.time_logged / 3600 : 0,
-        level: 0,
-        icon: row.type?.name?.toLowerCase() === 'camtrack' ? 'tracking' : undefined,
-      };
+  for (const row of raw) {
+    const taskId = row.task?.id;
+    if (!taskId) continue;
+
+    const status = row.status?.name?.toLowerCase() || '';
+    const date = new Date(row.date || 0);
+    const url = row.components?.[0]?.component_locations?.[0]?.url;
+
+    if (!url) continue;
+
+    const versionKey = `${status}-${date.toISOString()}`;
+    if (!seenVersions[taskId]) seenVersions[taskId] = new Set();
+    if (seenVersions[taskId].has(versionKey)) continue;
+    seenVersions[taskId].add(versionKey);
+
+    if (!versionByTask[taskId]) versionByTask[taskId] = [];
+
+    versionByTask[taskId].push({
+      status,
+      date,
+      url
+    });
+  }
+
+    // 🧩 Format into frontend-friendly tasks
+    const seenTaskIds = new Set();
+const tasks = raw
+  .filter(row => {
+    const taskId = row.task?.id;
+    if (!taskId || seenTaskIds.has(taskId)) return false;
+    seenTaskIds.add(taskId);
+    return true;
+  })
+  .map((row, index) => {
+    const task = row.task;
+    const taskId = task?.id;
+
+    const assignees = task?.assignments
+      ?.map(a => usersById[a.resource?.id])
+      .filter(Boolean)
+      .join(', ') || 'Unassigned';
+
+    // Get all versions for this task
+    const versions = versionByTask[taskId] || [];
+
+    // Instead of bestVideo (one), assign all videos:
+    const allVideos = versions.map(v => v.url);
+
+    return {
+      id: task?.id || '',
+      number: index + 1,
+      type: `Task (${task?.type?.name || 'Unknown'})`,
+      status: task?.status?.name?.toLowerCase() || 'pending',
+      assignee: assignees,
+      sequence: task?.parent?.parent?.name || 'Unassigned',
+      description: task?.parent?.name || 'Unknown',
+      dueDate: task?.end_date ? new Date(task.end_date).toISOString().split('T')[0] : null,
+      bidHours: task?.bid ? task.bid / 3600 : 0,
+      actualHours: task?.time_logged ? task.time_logged / 3600 : 0,
+      level: 0,
+      icon: task?.type?.name?.toLowerCase() === 'camtrack' ? 'tracking' : undefined,
+      assetName: row.asset?.name || '',
+      videos: allVideos
+    };
+  });
+
+
+    const limitedTasks = tasks.slice(0, 5);
+    console.log('✅ Preview of returned tasks:');
+    limitedTasks.forEach((task, i) => {
+      console.log(`#${i + 1}:`, {
+        id: task.id,
+        name: task.description,
+        status: task.status,
+        assignee: task.assignee,
+        asset: task.assetName,
+        videos: task.videos
+      });
     });
 
-    console.log('Final tasks with assignees:', tasks);
     res.json(tasks);
   } catch (err) {
-    console.error('Error fetching project details:', err);
+    console.error('❌ Failed to fetch project details with videos:', err);
     res.status(500).json({ error: 'Failed to fetch project details' });
   }
 });
-
-
-
 
 
 export default router;
