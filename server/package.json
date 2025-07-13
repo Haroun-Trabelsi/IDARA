@@ -6,7 +6,7 @@
   "main": "src/index.ts",
   "scripts": {
     "dev": "npx tsx src/index.ts",
-    "build": "rm -rf dist && npx tsc",
+    "build": "if exist dist rmdir /s /q dist && npx tsc",
     "start": "node dist/index.js"
   },
   "dependencies": {
@@ -17,14 +17,20 @@
     "express": "^4.21.2",
     "joi": "^17.13.3",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.10.1"
+    "mongoose": "^8.16.0",
+    "nodemailer": "^7.0.3",
+    "qrcode": "^1.5.4",
+    "speakeasy": "^2.0.0"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
     "@types/cors": "^2.8.17",
-    "@types/express": "^5.0.0",
+    "@types/express": "^5.0.3",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^22.13.12",
+    "@types/nodemailer": "^6.4.17",
+    "@types/qrcode": "^1.5.5",
+    "@types/speakeasy": "^2.0.10",
     "typescript": "^5.8.2"
   }
 }

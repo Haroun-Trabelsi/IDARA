@@ -5,6 +5,11 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import 'styles/ReactWelcome.css'
 import About from 'components/About'
 import ProjectManagementInterface from 'components/Projects'
+import CollaboratorPage from 'components/HeaderComponents/CollaboratorPage'; // Ajouter cette importation
+import Login from 'components/HeaderComponents/Login'; // Ajouter cette importation
+import Error from 'components/HeaderComponents/error'; // Ajouter cette importation
+import Register from 'components/HeaderComponents/Register'; // Ajouter cette importation
+import CompletProfil from 'components/HeaderComponents/CompleteProfil'; // Ajouter cette importation
 
 const App = () => {
   return (
@@ -13,7 +18,14 @@ const App = () => {
         <Header />
         <Routes>
           <Route path="/" element={<ProjectManagementInterface />} />
+          <Route path="/collaborator" element={<CollaboratorPage />} /> {/* Nouvelle route */}
           <Route path="/Projects" element={<ProjectManagementInterface />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/CompleteProfil" element={<CompletProfil />} />
+
+          <Route path="/error" element={<Error />} />
+
         </Routes>
         <AuthModal />
         <About />
