@@ -33,8 +33,6 @@ router.get('/projects/:projectName', async (req, res) => {
         asset.name,
         status.name,
         date,
-        components.name,
-        components.component_locations.url,
         task.id,
         task.name,
         task.type.name,
@@ -74,95 +72,74 @@ router.get('/projects/:projectName', async (req, res) => {
       );
     }
 
-  const versionByTask: Record<string, any[]> = {};
-  const seenVersions: Record<string, Set<string>> = {};
-
-  for (const row of raw) {
-    const taskId = row.task?.id;
-    if (!taskId) continue;
-
-    const status = row.status?.name?.toLowerCase() || '';
-    const date = new Date(row.date || 0);
-    const url = row.components?.[0]?.component_locations?.[0]?.url;
-
-    if (!url) continue;
-
-    const versionKey = `${status}-${date.toISOString()}`;
-    if (!seenVersions[taskId]) seenVersions[taskId] = new Set();
-    if (seenVersions[taskId].has(versionKey)) continue;
-    seenVersions[taskId].add(versionKey);
-
-    if (!versionByTask[taskId]) versionByTask[taskId] = [];
-
-    versionByTask[taskId].push({
-      status,
-      date,
-      url
-    });
-  }
-
-    // 🧩 Format into frontend-friendly tasks
     const seenTaskIds = new Set();
-const tasks = raw
-  .filter(row => {
-    const taskId = row.task?.id;
-    if (!taskId || seenTaskIds.has(taskId)) return false;
-    seenTaskIds.add(taskId);
-    return true;
-  })
-  .map((row, index) => {
-    const task = row.task;
-    const taskId = task?.id;
+    const tasks = raw
+      .filter(row => {
+        const taskId = row.task?.id;
+        if (!taskId || seenTaskIds.has(taskId)) return false;
+        seenTaskIds.add(taskId);
+        return true;
+      })
+      .map((row, index) => {
+        const task = row.task;
 
-    const assignees = task?.assignments
-      ?.map(a => usersById[a.resource?.id])
-      .filter(Boolean)
-      .join(', ') || 'Unassigned';
+        const assignees = task?.assignments
+          ?.map(a => usersById[a.resource?.id])
+          .filter(Boolean)
+          .join(', ') || 'Unassigned';
 
-    // Get all versions for this task
-    const versions = versionByTask[taskId] || [];
-
-    // Instead of bestVideo (one), assign all videos:
-    const allVideos = versions.map(v => v.url);
-
-    return {
-      id: task?.id || '',
-      number: index + 1,
-      type: `Task (${task?.type?.name || 'Unknown'})`,
-      status: task?.status?.name?.toLowerCase() || 'pending',
-      assignee: assignees,
-      sequence: task?.parent?.parent?.name || 'Unassigned',
-      description: task?.parent?.name || 'Unknown',
-      dueDate: task?.end_date ? new Date(task.end_date).toISOString().split('T')[0] : null,
-      bidHours: task?.bid ? task.bid / 3600 : 0,
-      actualHours: task?.time_logged ? task.time_logged / 3600 : 0,
-      level: 0,
-      icon: task?.type?.name?.toLowerCase() === 'camtrack' ? 'tracking' : undefined,
-      assetName: row.asset?.name || '',
-      videos: allVideos
-    };
-  });
-
-
-    const limitedTasks = tasks.slice(0, 5);
-    console.log('✅ Preview of returned tasks:');
-    limitedTasks.forEach((task, i) => {
-      console.log(`#${i + 1}:`, {
-        id: task.id,
-        name: task.description,
-        status: task.status,
-        assignee: task.assignee,
-        asset: task.assetName,
-        videos: task.videos
+        return {
+          id: task?.id || '',
+          number: index + 1,
+          type: `Task (${task?.type?.name || 'Unknown'})`,
+          status: task?.status?.name?.toLowerCase() || 'pending',
+          assignee: assignees,
+          sequence: task?.parent?.parent?.name || 'Unassigned',
+          description: task?.parent?.name || 'Unknown',
+          dueDate: task?.end_date ? new Date(task.end_date).toISOString().split('T')[0] : null,
+          bidHours: task?.bid ? task.bid / 3600 : 0,
+          actualHours: task?.time_logged ? task.time_logged / 3600 : 0,
+          level: 0,
+          icon: task?.type?.name?.toLowerCase() === 'camtrack' ? 'tracking' : undefined,
+          assetName: row.asset?.name || ''
+        };
       });
-    });
 
     res.json(tasks);
   } catch (err) {
-    console.error('❌ Failed to fetch project details with videos:', err);
+    console.error('❌ Failed to fetch project details:', err);
     res.status(500).json({ error: 'Failed to fetch project details' });
   }
 });
+
+// GET /task/:taskId/components
+router.get('/task/:taskId/components', async (req, res) => {
+  const { taskId } = req.params;
+  try {
+    const sessionInstance = await session;
+    const query = await sessionInstance.query(`
+      select
+        components.name,
+        components.file_type,
+        components.component_locations.url,
+        date
+      from AssetVersion
+      where task.id is ${taskId}
+      order by date desc
+    `);
+    const videos = query.data.map(av => ({
+      name: av.components?.[0]?.name || 'Unnamed',
+      fileType: av.components?.[0]?.file_type || '',
+      url: av.components?.[0]?.component_locations?.[0]?.url || '',
+      date: av.date
+    }));
+    res.json(videos.filter(v => v.url));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch components" });
+  }
+});
+
 
 
 export default router;

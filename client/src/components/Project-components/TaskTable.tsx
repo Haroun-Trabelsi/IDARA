@@ -78,13 +78,30 @@ const toggleTaskSelection = (taskId: string) => {
     return updated;
   });
 };
-const handleOpenVideoSelector = (taskId: string) => {
+const handleOpenVideoSelector = async (taskId: string) => {
   const task = tasks.find(t => t.id === taskId);
   if (!task) return;
-  setVideoOptions(task.videos || []);
-  setActiveTaskId(taskId);
-  setVideoModalOpen(true);
+
+  try {
+    const res = await fetch(`http://localhost:8080/api/task/${taskId}/components`);
+    const videoList = await res.json();
+
+    // Attach videos with name and date
+    const options = videoList.map((v: any) => ({
+      name: v.name,
+      fileType: v.fileType,
+      date: new Date(v.date).toLocaleDateString(),
+      value: v.url.value
+    }));
+
+    setVideoOptions(options);
+    setActiveTaskId(taskId);
+    setVideoModalOpen(true);
+  } catch (err) {
+    console.error("Failed to load videos", err);
+  }
 };
+
 
 const handleVideoSelect = (url: string) => {
   setTasks((prev: Task[] | undefined) =>
@@ -453,51 +470,41 @@ const handleCloseVideo = () => {
 <Dialog open={videoModalOpen} onClose={() => setVideoModalOpen(false)} maxWidth="md" fullWidth>
   <DialogContent>
     <Typography variant="h6" sx={{ mb: 2, color: "#e2e8f0" }}>
-      Select a version for task {activeTaskId}
+      Select a version for this task
     </Typography>
 
-    {videoOptions.length === 0 ? (
-      <Typography variant="body2" sx={{ color: "#a0aec0" }}>
-        No videos available for this task.
-      </Typography>
-    ) : (
-      videoOptions.map((videoUrl, index) => (
-        <Box
-          key={index}
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 1,
-            mb: 3,
-            p: 2,
-            border: "1px solid #2d3748",
-            borderRadius: 1,
-            backgroundColor: "#1a202c",
-          }}
-        >
-          <video
-            src={videoUrl.value}
-            controls
-            style={{
-              width: "100%",
-              maxHeight: "300px",
-              borderRadius: "4px",
-              backgroundColor: "black",
-            }}
-          />
+    {videoOptions.map((video, index) => (
+  <Box key={index}>
+    <video
+      src={video.value }
+      controls
+      style={{
+        width: "100%",
+        maxHeight: "300px",
+        borderRadius: "4px",
+        backgroundColor: "black",
+      }}
+    />
 
-          <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={() => handleVideoSelect(videoUrl.value)}
-            >
-              Use this
-            </Button>
-          </Box>
-        </Box>
-      ))
-    )}
+    {/* Show extra info */}
+    <Box sx={{ display: "flex", justifyContent: "space-between", mt: 1, color: "#cbd5e0", fontSize: "13px" }}>
+      <span><b>Name:</b> {video.name}</span>
+      <span><b>Type:</b> {video.fileType}</span>
+      <span><b>Date:</b> {new Date(video.date).toLocaleDateString()}</span>
+    </Box>
+
+    <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
+      <Button
+        size="small"
+        variant="outlined"
+        onClick={() => handleVideoSelect(video.value)}
+      >
+        Select
+      </Button>
+    </Box>
+  </Box>
+))}
+
   </DialogContent>
 </Dialog>
 
