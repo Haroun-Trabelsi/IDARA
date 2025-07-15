@@ -10,6 +10,8 @@ import Login from 'components/HeaderComponents/Login'; // Ajouter cette importat
 import Error from 'components/HeaderComponents/error'; // Ajouter cette importation
 import Register from 'components/HeaderComponents/Register'; // Ajouter cette importation
 import CompletProfil from 'components/HeaderComponents/CompleteProfil'; // Ajouter cette importation
+import Account from 'components/HeaderComponents/Account'; // Ajouter cette importation
+import Organizations from 'components/HeaderComponents/OrganizationPage'; // Ajouter cette importation
 
 const App = () => {
   return (
@@ -23,6 +25,8 @@ const App = () => {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/CompleteProfil" element={<CompletProfil />} />
+          <Route path="/Account" element={<Account />} />
+          <Route path="/organizations" element={<Organizations />} />
 
           <Route path="/error" element={<Error />} />
 

@@ -122,10 +122,13 @@ export const getAccounts: RequestHandler = async (req, res, next) => {
     res.status(200).json(accounts.map(a => ({
       id: a._id.toString(),
       name: a.name,
+      surname:a.surname,
       email: a.email,
       role: a.role,
       status: a.status,
       invitedDate: a.invitedDate ? a.invitedDate.toISOString().split('T')[0] : null,
+      canInvite: a.canInvite, // Ajout de canInvite
+      invitedBy: a.invitedBy, // Ajout de invitedBy pour plus de contexte
     })));
   } catch (error) {
     next(error);

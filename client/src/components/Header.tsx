@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, Fragment, MouseEventHandler, useEffect } from "react";
+import React, { useState, MouseEventHandler, useEffect } from "react";
 import { 
   AppBar, 
   Toolbar, 
@@ -12,7 +12,6 @@ import {
   Avatar, 
   Popover, 
   List, 
-  ListSubheader, 
   ListItemButton,
   Dialog,
   DialogTitle,
@@ -20,7 +19,8 @@ import {
   TextField,
   Typography,
   Card,
-  CardContent
+  CardContent,
+  Divider
 } from "@mui/material";
 import { 
   KeyboardArrowDown, 
@@ -30,17 +30,22 @@ import {
   Edit, 
   Logout,
   Search,
-  Settings as SettingsIcon // Renommer pour éviter la confusion
+  Settings as SettingsIcon,
+  Business,
+  Star,
+  Language as LanguageIcon,
+  Brightness4,
+  Help
 } from "@mui/icons-material";
 import { useAuth } from 'contexts/AuthContext';
 import { useModalStore } from 'store/useModalStore';
 import OnlineIndicator from 'components/OnlineIndicator';
-import { useNavigate } from 'react-router-dom'; // Ajouter pour la navigation
+import { useNavigate } from 'react-router-dom';
 
 // Créer un composant Settings local
 const Settings: React.FC = () => {
   const [settingsAnchorEl, setSettingsAnchorEl] = useState<null | HTMLElement>(null);
-  const navigate = useNavigate(); // Hook pour la navigation
+  const navigate = useNavigate();
 
   const openSettingsMenu = (e: React.MouseEvent<HTMLButtonElement>) => {
     setSettingsAnchorEl(e.currentTarget);
@@ -51,7 +56,7 @@ const Settings: React.FC = () => {
   };
 
   const handleCollaboratorClick = () => {
-    navigate('/collaborator'); // Naviguer vers la page Collaborator
+    navigate('/collaborator');
     closeSettingsMenu();
   };
 
@@ -88,6 +93,7 @@ const Settings: React.FC = () => {
 export default function Header() {
   const { isLoggedIn, account, logout, token } = useAuth();
   const { setCurrentModal } = useModalStore();
+  const navigate = useNavigate();
 
   const [projectsAnchorEl, setProjectsAnchorEl] = useState<null | HTMLElement>(null);
   const [bookmarksAnchorEl, setBookmarksAnchorEl] = useState<null | HTMLElement>(null);
@@ -170,12 +176,7 @@ export default function Header() {
   };
 
   const handleEditProfile = () => {
-    setEditProfileOpen(true);
-    closePopover();
-  };
-
-  const handleAccountSecurity = () => {
-    setAccountSecurityOpen(true);
+    navigate('/Account');
     closePopover();
   };
 
@@ -351,57 +352,182 @@ export default function Header() {
               onClose={closePopover}
               anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
               transformOrigin={{ vertical: "top", horizontal: "right" }}
+              PaperProps={{
+                sx: {
+                  bgcolor: "#1a202c",
+                  border: "1px solid #2d3748",
+                  borderRadius: "8px",
+                  minWidth: "280px",
+                  boxShadow: "0 10px 25px rgba(0, 0, 0, 0.5)"
+                }
+              }}
             >
-              <List style={{ minWidth: "180px" }}>
-                {/* Section Hello avec Avatar */}
-                <ListSubheader 
-                  sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: 1, 
-                    py: 2,
-                    justifyContent: 'center',
-                    bgcolor: 'transparent'
-                  }}
-                >
-                  <Avatar 
-                    sx={{ 
-                      width: 32, 
-                      height: 32, 
-                      bgcolor: "#4299e1", 
-                      fontSize: "14px" 
-                    }} 
-                    alt={account?.name || 'Guest'}
-                  >
-                    {account?.name ? account.name[0].toUpperCase() : 'G'}
-                  </Avatar>
-                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                    Hello, {account?.name || "Guest"}
-                  </Typography>
-                </ListSubheader>
-
+              <Box sx={{ p: 0 }}>
                 {isLoggedIn ? (
-                  <Fragment>
-                    <ListItemButton onClick={handleEditProfile}>
-                      <Edit sx={{ fontSize: "16px", marginRight: 1 }} />
-                      Edit Profile
-                    </ListItemButton>
-                    <ListItemButton onClick={handleAccountSecurity}>
-                      <SettingsIcon sx={{ fontSize: "16px", marginRight: 1 }} /> {/* Utiliser SettingsIcon ici */}
-                      Account Security
-                    </ListItemButton>
-                    <ListItemButton onClick={handleLogout}>
-                      <Logout sx={{ fontSize: "16px", marginRight: 1 }} />
-                      Logout
-                    </ListItemButton>
-                  </Fragment>
+                  <>
+                    {/* Section Header - Centrée */}
+                    <Box sx={{ 
+                      display: 'flex', 
+                      flexDirection: 'column',
+                      alignItems: 'center', 
+                      gap: 1, 
+                      py: 3,
+                      px: 2,
+                      borderBottom: "1px solid #2d3748"
+                    }}>
+                      <Avatar 
+                        sx={{ 
+                          width: 48, 
+                          height: 48, 
+                          bgcolor: "#4299e1", 
+                          fontSize: "18px"
+                        }} 
+                        alt={account?.name || 'Guest'}
+                      >
+                        {account?.name ? account.name[0].toUpperCase() : 'G'}
+                      </Avatar>
+                      <Typography variant="body1" sx={{ 
+                        fontWeight: 600, 
+                        color: "#e2e8f0",
+                        fontSize: "16px"
+                      }}>
+                        {`${account?.name || "John"} ${account?.surname || "Doe"}`}
+                      </Typography>
+                      <Typography variant="body2" sx={{ 
+                        color: "#a0aec0",
+                        fontSize: "14px"
+                      }}>
+                        {account?.email || "ines.dahmani@esprit.tn"}
+                      </Typography>
+                      <Button
+                        variant="text"
+                        onClick={handleEditProfile}
+                        sx={{ 
+                          color: "#4299e1",
+                          textTransform: "none",
+                          fontSize: "14px",
+                          fontWeight: 500,
+                          "&:hover": { 
+                            bgcolor: "rgba(66, 153, 225, 0.1)"
+                          }
+                        }}
+                      >
+                        Account
+                      </Button>
+                    </Box>
+
+                    {/* Menu Items - Non centrés */}
+                    <List sx={{ py: 1 }}>
+                      <ListItemButton 
+                        onClick={() => navigate('/organizations')}
+                        sx={{ 
+                          color: "#e2e8f0",
+                          "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)" },
+                          py: 1.5
+                        }}
+                      >
+                        <Business sx={{ fontSize: "20px", marginRight: 2, color: "#a0aec0" }} />
+                        <Typography variant="body2" sx={{ fontSize: "14px" }}>
+                          Manage organization
+                        </Typography>
+                      </ListItemButton>
+
+                      <ListItemButton 
+                        onClick={() => console.log('Upgrade to Review pro')}
+                        sx={{ 
+                          color: "#e2e8f0",
+                          "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)" },
+                          py: 1.5
+                        }}
+                      >
+                        <Star sx={{ fontSize: "20px", marginRight: 2, color: "#a0aec0" }} />
+                        <Typography variant="body2" sx={{ fontSize: "14px" }}>
+                          Upgrade to Review pro
+                        </Typography>
+                      </ListItemButton>
+
+                      <ListItemButton 
+                        onClick={() => console.log('Language')}
+                        sx={{ 
+                          color: "#e2e8f0",
+                          "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)" },
+                          py: 1.5
+                        }}
+                      >
+                        <LanguageIcon sx={{ fontSize: "20px", marginRight: 2, color: "#a0aec0" }} />
+                        <Typography variant="body2" sx={{ fontSize: "14px" }}>
+                          Language
+                        </Typography>
+                      </ListItemButton>
+
+                      <ListItemButton 
+                        onClick={() => console.log('Switch theme')}
+                        sx={{ 
+                          color: "#e2e8f0",
+                          "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)" },
+                          py: 1.5
+                        }}
+                      >
+                        <Brightness4 sx={{ fontSize: "20px", marginRight: 2, color: "#a0aec0" }} />
+                        <Typography variant="body2" sx={{ fontSize: "14px" }}>
+                          Switch theme
+                        </Typography>
+                      </ListItemButton>
+
+                      <ListItemButton 
+                        onClick={() => console.log('Help and support')}
+                        sx={{ 
+                          color: "#e2e8f0",
+                          "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)" },
+                          py: 1.5
+                        }}
+                      >
+                        <Help sx={{ fontSize: "20px", marginRight: 2, color: "#a0aec0" }} />
+                        <Typography variant="body2" sx={{ fontSize: "14px" }}>
+                          Help and support
+                        </Typography>
+                      </ListItemButton>
+
+                      <Divider sx={{ bgcolor: "#2d3748", my: 1 }} />
+
+                      <ListItemButton 
+                        onClick={handleLogout}
+                        sx={{ 
+                          color: "#e2e8f0",
+                          "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)" },
+                          py: 1.5
+                        }}
+                      >
+                        <Logout sx={{ fontSize: "20px", marginRight: 2, color: "#a0aec0" }} />
+                        <Typography variant="body2" sx={{ fontSize: "14px" }}>
+                          Sign out
+                        </Typography>
+                      </ListItemButton>
+                    </List>
+                  </>
                 ) : (
-                  <Fragment>
-                    <ListItemButton onClick={clickLogin}>Login</ListItemButton>
-                    <ListItemButton onClick={clickRegister}>Register</ListItemButton>
-                  </Fragment>
+                  <List sx={{ py: 1 }}>
+                    <ListItemButton 
+                      onClick={clickLogin}
+                      sx={{ 
+                        color: "#e2e8f0",
+                        "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)" }
+                      }}
+                    >
+                      Login
+                    </ListItemButton>
+                    <ListItemButton 
+                      onClick={clickRegister}
+                      sx={{ 
+                        color: "#e2e8f0",
+                        "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)" }
+                      }}
+                    >
+                      Register
+                    </ListItemButton>
+                  </List>
                 )}
-              </List>
+              </Box>
             </Popover>
           </Box>
         </Toolbar>
