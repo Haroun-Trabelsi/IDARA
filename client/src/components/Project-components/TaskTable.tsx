@@ -18,6 +18,7 @@ import {
   Button,
   Dialog,
   DialogContent,
+  CircularProgress,
 } from "@mui/material"
 import {
   PlayCircleOutline,
@@ -154,6 +155,9 @@ const handleVideoSelect = (url: string) => {
   const selectedTaskObjects = flatTasks.filter(task => selectedTasks.has(task.id));
 const [videoUrl, setVideoUrl] = React.useState<string | null>(null);
 const [open, setOpen] = React.useState(false);
+const [loadingTaskId, setLoadingTaskId] = useState<string | null>(null);
+const [taskResults, setTaskResults] = useState<Record<string, any>>({});
+
 
 const handleOpenVideo = (url: string) => {
   setVideoUrl(url);
@@ -164,10 +168,72 @@ const handleCloseVideo = () => {
   setVideoUrl(null);
 };
 
-  function sendToFunction(selectedTaskObjects: Task[]): void {
-    console.log(selectedTaskObjects)
-    throw new Error("Function not implemented.")
+async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
+  for (const task of selectedTaskObjects) {
+    const video = task.videos?.[0]?.value;
+
+    if (!video?.value) {
+      alert(`No video assigned to task ${task.id}. Please select a video before sending.`);
+      continue;
+    }
+
+    try {
+      setLoadingTaskId(task.id); // start loading indicator for this task
+
+      const response = await fetch(video.value);
+      const blob = await response.blob();
+
+      const formData = new FormData();
+      formData.append("file", blob, `${task.id}.mp4`);
+
+      const uploadRes = await fetch("http://localhost:8089/upload_video", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!uploadRes.ok) {
+        throw new Error(`Server returned ${uploadRes.status}`);
+      }
+
+      const { job_id } = await uploadRes.json();
+      console.log(`Video uploaded for task ${task.id}, job ID: ${job_id}`);
+
+      // Poll result until status is "done"
+      const pollUrl = `http://localhost:8089/result/${job_id}`;
+
+      const pollResult = async () => {
+        while (true) {
+          const res = await fetch(pollUrl);
+          const data = await res.json();
+
+          if (data.status === "done") {
+            console.log(`Task ${task.id} done:`, data.result);
+            setTaskResults(prev => ({ ...prev, [task.id]: data.result }));
+            setLoadingTaskId(null); // stop loading indicator
+            break;
+          } else if (data.status === "processing") {
+            console.log(`Task ${task.id} is processing...`);
+          } else {
+            console.error(`Unexpected status for task ${task.id}:`, data);
+            setLoadingTaskId(null);
+            break;
+          }
+
+          await new Promise(resolve => setTimeout(resolve, 1000)); // wait 1 sec before retry
+        }
+      };
+
+      await pollResult();
+
+    } catch (err) {
+      console.error(`Failed to process task ${task.id}`, err);
+      alert(`Failed to process video for task ${task.id}.`);
+      setLoadingTaskId(null);
+    }
   }
+}
+
+
 
   return (
     <>
@@ -300,6 +366,19 @@ const handleCloseVideo = () => {
             >
               +/- hours
             </TableCell>
+            <TableCell
+              align="center"
+              sx={{
+                width: 300,
+                bgcolor: "#1a202c",
+                color: "#718096",
+                borderBottom: "1px solid #2d3748",
+                fontSize: "12px",
+                fontWeight: 500,
+              }}
+            >
+              Difficulty
+            </TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -419,6 +498,25 @@ const handleCloseVideo = () => {
                   {task.actualHours.toFixed(2)}
                 </Typography>
               </TableCell>
+              <TableCell>
+    {loadingTaskId === task.id ? (
+      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        <CircularProgress size={20} sx={{ mr: 1 }} />
+        <Typography variant="body2" color="textSecondary">Processing...</Typography>
+      </Box>
+    ) : taskResults[task.id] ? (
+      <Box>
+        <Typography variant="body2" fontWeight="bold">
+          {taskResults[task.id].predicted_class} ({taskResults[task.id].confidence})
+        </Typography>
+        <Typography variant="caption" color="textSecondary">
+          Easy: {taskResults[task.id].probabilities.Easy}, Medium: {taskResults[task.id].probabilities.Medium}, Hard: {taskResults[task.id].probabilities.Hard}
+        </Typography>
+      </Box>
+    ) : (
+      <Typography variant="body2" color="textSecondary">Not processed</Typography>
+    )}
+  </TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -473,43 +571,54 @@ const handleCloseVideo = () => {
       Select a version for this task
     </Typography>
 
-    {videoOptions.map((video, index) => (
-  <Box key={index}>
-    <video
-      src={video.value }
-      controls
-      style={{
-        width: "100%",
-        maxHeight: "300px",
-        borderRadius: "4px",
-        backgroundColor: "black",
-      }}
-    />
+    {videoOptions
+      .filter((video) => video.fileType === ".mp4")
+      .map((video, index) => (
+        <Box key={index}>
+          <video
+            src={video.value}
+            controls
+            style={{
+              width: "100%",
+              maxHeight: "300px",
+              borderRadius: "4px",
+              backgroundColor: "black",
+            }}
+          />
 
-    {/* Show extra info */}
-    <Box sx={{ display: "flex", justifyContent: "space-between", mt: 1, color: "#cbd5e0", fontSize: "13px" }}>
-      <span><b>Name:</b> {video.name}</span>
-      <span><b>Type:</b> {video.fileType}</span>
-      <span><b>Date:</b> {new Date(video.date).toLocaleDateString()}</span>
-    </Box>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              mt: 1,
+              color: "#cbd5e0",
+              fontSize: "13px",
+            }}
+          >
+            <span>
+              <b>Name:</b> {video.name}
+            </span>
+            <span>
+              <b>Type:</b> {video.fileType}
+            </span>
+            <span>
+              <b>Date:</b> {new Date(video.date).toLocaleDateString()}
+            </span>
+          </Box>
 
-    <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
-      <Button
-        size="small"
-        variant="outlined"
-        onClick={() => handleVideoSelect(video.value)}
-      >
-        Select
-      </Button>
-    </Box>
-  </Box>
-))}
-
+          <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => handleVideoSelect(video)}
+            >
+              Select
+            </Button>
+          </Box>
+        </Box>
+      ))}
   </DialogContent>
 </Dialog>
-
-
-
 
 </>
     
