@@ -6,6 +6,8 @@ import login from '../controllers/auth/login'
 import loginWithToken from '../controllers/auth/login-with-token'
 import verify from '../controllers/auth/verify'
 import { setupMFA, verifyMFA } from '../controllers/auth/mfaController'
+
+import { editProfile, changePassword } from '../controllers/auth/editProfile';
 // initialize router
 const router = express.Router()
 
@@ -28,4 +30,11 @@ router.post('/mfa/setup', [checkBearerToken], setupMFA, errorHandler) // Requier
 // POST at path: http://localhost:8080/auth/mfa/verify
 router.post('/mfa/verify', [checkBearerToken], verifyMFA, errorHandler) // Requiert un token pour sécurité
 
+
+
+// PUT at path: http://localhost:8080/auth/edit-profile
+router.put('/edit-profile', [checkBearerToken], editProfile, errorHandler);
+
+// PUT at path: http://localhost:8080/auth/edit-profile/password
+router.put('/edit-profile/password', [checkBearerToken], changePassword, errorHandler);
 export default router

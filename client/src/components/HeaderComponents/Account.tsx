@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
@@ -12,12 +12,9 @@ import {
   Button,
   Card,
   CardContent,
-  Switch,
-  FormControlLabel,
   Avatar,
   IconButton,
-  Alert,
-  Grid
+  Alert
 } from "@mui/material";
 import { 
   AccountCircle, 
@@ -28,6 +25,8 @@ import {
   Cancel
 } from "@mui/icons-material";
 import { useAuth } from 'contexts/AuthContext';
+import axios from 'utils/axios';
+import { validateProfile, validatePassword } from 'utils/validation';
 
 interface MenuItem {
   id: string;
@@ -43,67 +42,105 @@ const menuItems: MenuItem[] = [
 ];
 
 export default function AccountPage() {
-  const { account, token } = useAuth();
+  const { account, token, updateAccount } = useAuth();
   const [activeMenu, setActiveMenu] = useState("account");
   const [editMode, setEditMode] = useState(false);
   const [profileData, setProfileData] = useState({
-    name: account?.name || 'John',
-    surname: account?.surname || 'Doe',
-    email: account?.email || 'ines.dahmani@esprit.tn'
+    name: account?.name || '',
+    surname: account?.surname || '',
+    email: account?.email || ''
   });
-  
-  const [notificationSettings, setNotificationSettings] = useState({
-    generalEmail: true,
-    pushNotifications: false,
-    assetManagerCollectionCreated: true,
-    assetManagerAssetCreated: true,
-    assetManagerAssetLinkedToCollection: false,
-    assetManagerAssetLinkedToProject: false,
-    assetManagerAssetRemoved: true,
-    assetManagerCollectionRemoved: true,
-    assetManagerTransformationFailed: true
-  });
-
-  const [playerSettings, setPlayerSettings] = useState({
-    autoplay: true,
-    quality: 'HD',
-    volume: 75,
-    subtitles: false
-  });
-
-  const [securitySettings, setSecuritySettings] = useState({
-    mfaEnabled: !!account?.mfaEnabled,
-    sessionTimeout: 30,
-    passwordExpiry: 90
-  });
-
+  const [profileErrors, setProfileErrors] = useState({ name: '', surname: '', email: '' });
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
-
+  const [passwordErrors, setPasswordErrors] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  // notificationSettings et playerSettings conservés pour une future implémentation
+  // À implémenter dans l'onglet "Notifications"
+  // À implémenter dans l'onglet "Player"
+  const [securitySettings, setSecuritySettings] = useState({
+    mfaEnabled: !!account?.mfaEnabled,
+    sessionTimeout: 30,
+    passwordExpiry: 90
+  });
   const [mfaQrCode, setMfaQrCode] = useState<string | null>(null);
   const [mfaSecret, setMfaSecret] = useState<string | null>(null);
   const [mfaCode, setMfaCode] = useState('');
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
-  const handleSaveProfile = () => {
-    console.log('Profile saved:', profileData);
-    setEditMode(false);
-    setMessage({ type: 'success', text: 'Profile updated successfully!' });
-    setTimeout(() => setMessage(null), 3000);
+  useEffect(() => {
+    setProfileData({
+      name: account?.name || '',
+      surname: account?.surname || '',
+      email: account?.email || ''
+    });
+    setSecuritySettings(prev => ({
+      ...prev,
+      mfaEnabled: !!account?.mfaEnabled
+    }));
+  }, [account]);
+
+  const handleProfileChange = (field: string, value: string) => {
+    setProfileData(prev => ({ ...prev, [field]: value }));
+    // Supprimé la validation en temps réel
+    setProfileErrors({ name: '', surname: '', email: '' }); // Réinitialise les erreurs
   };
 
-  const handleChangePassword = () => {
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setMessage({ type: 'error', text: 'Passwords do not match' });
+  const handlePasswordChange = (field: string, value: string) => {
+    setPasswordData(prev => ({ ...prev, [field]: value }));
+    // Supprimé la validation en temps réel
+    setPasswordErrors({ currentPassword: '', newPassword: '', confirmPassword: '' }); // Réinitialise les erreurs
+  };
+
+  const handleSaveProfile = async () => {
+    const { isValid, errors } = validateProfile(profileData);
+    setProfileErrors(errors);
+    if (!isValid || !token) {
+      setMessage({ type: 'error', text: !token ? 'You must be logged in to save changes' : 'Please fix the errors' });
       return;
     }
-    console.log('Password changed');
-    setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    setMessage({ type: 'success', text: 'Password changed successfully!' });
-    setTimeout(() => setMessage(null), 3000);
+    try {
+      const response = await axios.put('/auth/edit-profile', profileData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      updateAccount(response.data.account);
+      setEditMode(false);
+      setProfileErrors({ name: '', surname: '', email: '' }); // Réinitialise les erreurs après succès
+      setMessage({ type: 'success', text: 'Profile updated successfully!' });
+      setTimeout(() => setMessage(null), 3000);
+    } catch (err: any) {
+      const message = err.response?.data?.message || 'Failed to update profile';
+      setMessage({ type: 'error', text: message });
+      console.error('Profile update error:', err);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    const { isValid, errors } = validatePassword(passwordData);
+    setPasswordErrors(errors);
+    if (!isValid || !token) {
+      setMessage({ type: 'error', text: !token ? 'You must be logged in to change password' : 'Please fix the errors' });
+      return;
+    }
+    try {
+      await axios.put('/auth/edit-profile/password', {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+        confirmPassword: passwordData.confirmPassword // Ajout de confirmPassword
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setPasswordErrors({ currentPassword: '', newPassword: '', confirmPassword: '' }); // Réinitialise les erreurs
+      setMessage({ type: 'success', text: 'Password changed successfully!' });
+      setTimeout(() => setMessage(null), 3000);
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || 'Failed to change password';
+      setMessage({ type: 'error', text: errorMessage });
+      console.error('Password change error:', err.response?.data || err);
+    }
   };
 
   const handleEnableMFA = async () => {
@@ -150,6 +187,8 @@ export default function AccountPage() {
       if (!response.ok) {
         throw new Error(`Failed to verify MFA: ${response.status}`);
       }
+      const data = await response.json();
+      updateAccount(data.account);
       setSecuritySettings(prev => ({ ...prev, mfaEnabled: true }));
       setMfaQrCode(null);
       setMfaSecret(null);
@@ -189,14 +228,14 @@ export default function AccountPage() {
                       mr: 3
                     }}
                   >
-                    {profileData.name[0].toUpperCase()}
+                    {(profileData.name || '')[0]?.toUpperCase() || ''} {/* Vérification pour éviter undefined */}
                   </Avatar>
                   <Box sx={{ flexGrow: 1 }}>
                     <Typography variant="h6" sx={{ color: "#e2e8f0", mb: 1 }}>
-                      {`${profileData.name} ${profileData.surname}`}
+                      {`${profileData.name || ''} ${profileData.surname || ''}`}
                     </Typography>
                     <Typography variant="body2" sx={{ color: "#a0aec0" }}>
-                      {profileData.email}
+                      {profileData.email || ''}
                     </Typography>
                   </Box>
                   <IconButton 
@@ -211,8 +250,10 @@ export default function AccountPage() {
                   <TextField
                     label="First Name"
                     value={profileData.name}
-                    onChange={(e) => setProfileData(prev => ({ ...prev, name: e.target.value }))}
+                    onChange={(e) => handleProfileChange('name', e.target.value)}
                     disabled={!editMode}
+                    error={!!profileErrors.name}
+                    helperText={profileErrors.name}
                     sx={{ 
                       '& .MuiOutlinedInput-root': { 
                         bgcolor: editMode ? '#2d3748' : 'transparent',
@@ -224,8 +265,10 @@ export default function AccountPage() {
                   <TextField
                     label="Last Name"
                     value={profileData.surname}
-                    onChange={(e) => setProfileData(prev => ({ ...prev, surname: e.target.value }))}
+                    onChange={(e) => handleProfileChange('surname', e.target.value)}
                     disabled={!editMode}
+                    error={!!profileErrors.surname}
+                    helperText={profileErrors.surname}
                     sx={{ 
                       '& .MuiOutlinedInput-root': { 
                         bgcolor: editMode ? '#2d3748' : 'transparent',
@@ -237,8 +280,10 @@ export default function AccountPage() {
                   <TextField
                     label="Email"
                     value={profileData.email}
-                    onChange={(e) => setProfileData(prev => ({ ...prev, email: e.target.value }))}
+                    onChange={(e) => handleProfileChange('email', e.target.value)}
                     disabled={!editMode}
+                    error={!!profileErrors.email}
+                    helperText={profileErrors.email}
                     sx={{ 
                       gridColumn: 'span 2',
                       '& .MuiOutlinedInput-root': { 
@@ -280,221 +325,6 @@ export default function AccountPage() {
           </Box>
         );
 
-      case "notifications":
-        return (
-          <Box>
-            <Typography variant="h5" sx={{ mb: 3, color: "#e2e8f0", fontWeight: 600 }}>
-              Notification Settings
-            </Typography>
-            
-            <Card sx={{ bgcolor: "#1a202c", border: "1px solid #2d3748" }}>
-              <CardContent>
-                <Typography variant="body2" sx={{ mb: 3, color: "#a0aec0" }}>
-                  These general settings apply to your project in all Unity products.
-                </Typography>
-                
-                <Grid container spacing={2}>
-                  <Grid>
-                    <Box>
-                      <Typography variant="h6" sx={{ mb: 2, color: "#e2e8f0" }}>
-                        Email
-                      </Typography>
-                      <FormControlLabel
-                        control={
-                          <Switch 
-                            checked={notificationSettings.generalEmail}
-                            onChange={(e) => setNotificationSettings(prev => ({ ...prev, generalEmail: e.target.checked }))}
-                            sx={{ '& .MuiSwitch-switchBase.Mui-checked': { color: '#4299e1' } }}
-                          />
-                        }
-                        label="General Email"
-                        sx={{ color: '#e2e8f0' }}
-                      />
-                    </Box>
-                    <Box sx={{ mt: 3 }}>
-                      <Typography variant="h6" sx={{ mb: 2, color: "#e2e8f0" }}>
-                        Chat
-                      </Typography>
-                      <FormControlLabel
-                        control={
-                          <Switch 
-                            checked={notificationSettings.pushNotifications}
-                            onChange={(e) => setNotificationSettings(prev => ({ ...prev, pushNotifications: e.target.checked }))}
-                            sx={{ '& .MuiSwitch-switchBase.Mui-checked': { color: '#4299e1' } }}
-                          />
-                        }
-                        label="Push Notifications"
-                        sx={{ color: '#e2e8f0' }}
-                      />
-                    </Box>
-                  </Grid>
-                  <Grid>
-                    <Box>
-                      <Typography variant="h6" sx={{ mb: 2, color: "#e2e8f0" }}>
-                        Asset Manager
-                      </Typography>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <FormControlLabel
-                          control={
-                            <Switch 
-                              checked={notificationSettings.assetManagerCollectionCreated}
-                              onChange={(e) => setNotificationSettings(prev => ({ ...prev, assetManagerCollectionCreated: e.target.checked }))}
-                              sx={{ '& .MuiSwitch-switchBase.Mui-checked': { color: '#4299e1' } }}
-                            />
-                          }
-                          label="Collection Created"
-                          sx={{ color: '#e2e8f0' }}
-                        />
-                        <FormControlLabel
-                          control={
-                            <Switch 
-                              checked={notificationSettings.assetManagerAssetCreated}
-                              onChange={(e) => setNotificationSettings(prev => ({ ...prev, assetManagerAssetCreated: e.target.checked }))}
-                              sx={{ '& .MuiSwitch-switchBase.Mui-checked': { color: '#4299e1' } }}
-                            />
-                          }
-                          label="Asset Created"
-                          sx={{ color: '#e2e8f0' }}
-                        />
-                        <FormControlLabel
-                          control={
-                            <Switch 
-                              checked={notificationSettings.assetManagerAssetLinkedToCollection}
-                              onChange={(e) => setNotificationSettings(prev => ({ ...prev, assetManagerAssetLinkedToCollection: e.target.checked }))}
-                              sx={{ '& .MuiSwitch-switchBase.Mui-checked': { color: '#4299e1' } }}
-                            />
-                          }
-                          label="Asset Linked To Collection"
-                          sx={{ color: '#e2e8f0' }}
-                        />
-                        <FormControlLabel
-                          control={
-                            <Switch 
-                              checked={notificationSettings.assetManagerAssetLinkedToProject}
-                              onChange={(e) => setNotificationSettings(prev => ({ ...prev, assetManagerAssetLinkedToProject: e.target.checked }))}
-                              sx={{ '& .MuiSwitch-switchBase.Mui-checked': { color: '#4299e1' } }}
-                            />
-                          }
-                          label="Asset Linked To Project"
-                          sx={{ color: '#e2e8f0' }}
-                        />
-                        <FormControlLabel
-                          control={
-                            <Switch 
-                              checked={notificationSettings.assetManagerAssetRemoved}
-                              onChange={(e) => setNotificationSettings(prev => ({ ...prev, assetManagerAssetRemoved: e.target.checked }))}
-                              sx={{ '& .MuiSwitch-switchBase.Mui-checked': { color: '#4299e1' } }}
-                            />
-                          }
-                          label="Asset Removed"
-                          sx={{ color: '#e2e8f0' }}
-                        />
-                        <FormControlLabel
-                          control={
-                            <Switch 
-                              checked={notificationSettings.assetManagerCollectionRemoved}
-                              onChange={(e) => setNotificationSettings(prev => ({ ...prev, assetManagerCollectionRemoved: e.target.checked }))}
-                              sx={{ '& .MuiSwitch-switchBase.Mui-checked': { color: '#4299e1' } }}
-                            />
-                          }
-                          label="Collection Removed"
-                          sx={{ color: '#e2e8f0' }}
-                        />
-                        <FormControlLabel
-                          control={
-                            <Switch 
-                              checked={notificationSettings.assetManagerTransformationFailed}
-                              onChange={(e) => setNotificationSettings(prev => ({ ...prev, assetManagerTransformationFailed: e.target.checked }))}
-                              sx={{ '& .MuiSwitch-switchBase.Mui-checked': { color: '#4299e1' } }}
-                            />
-                          }
-                          label="Transformation Failed"
-                          sx={{ color: '#e2e8f0' }}
-                        />
-                      </Box>
-                    </Box>
-                  </Grid>
-                </Grid>
-              </CardContent>
-            </Card>
-          </Box>
-        );
-
-      case "player":
-        return (
-          <Box>
-            <Typography variant="h5" sx={{ mb: 3, color: "#e2e8f0", fontWeight: 600 }}>
-              Player Settings
-            </Typography>
-            
-            <Card sx={{ bgcolor: "#1a202c", border: "1px solid #2d3748" }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  <FormControlLabel
-                    control={
-                      <Switch 
-                        checked={playerSettings.autoplay}
-                        onChange={(e) => setPlayerSettings(prev => ({ ...prev, autoplay: e.target.checked }))}
-                        sx={{ '& .MuiSwitch-switchBase.Mui-checked': { color: '#4299e1' } }}
-                      />
-                    }
-                    label="Autoplay"
-                    sx={{ color: '#e2e8f0' }}
-                  />
-                  
-                  <Box>
-                    <Typography variant="body1" sx={{ color: '#e2e8f0', mb: 1 }}>
-                      Video Quality
-                    </Typography>
-                    <TextField
-                      select
-                      value={playerSettings.quality}
-                      onChange={(e) => setPlayerSettings(prev => ({ ...prev, quality: e.target.value }))}
-                      SelectProps={{ native: true }}
-                      sx={{ 
-                        '& .MuiOutlinedInput-root': { 
-                          bgcolor: '#2d3748',
-                          color: '#e2e8f0'
-                        }
-                      }}
-                    >
-                      <option value="HD">HD</option>
-                      <option value="Full HD">Full HD</option>
-                      <option value="4K">4K</option>
-                    </TextField>
-                  </Box>
-
-                  <Box>
-                    <Typography variant="body1" sx={{ color: '#e2e8f0', mb: 1 }}>
-                      Volume: {playerSettings.volume}%
-                    </Typography>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={playerSettings.volume}
-                      onChange={(e) => setPlayerSettings(prev => ({ ...prev, volume: parseInt(e.target.value) }))}
-                      style={{ width: '100%', accentColor: '#4299e1' }}
-                    />
-                  </Box>
-
-                  <FormControlLabel
-                    control={
-                      <Switch 
-                        checked={playerSettings.subtitles}
-                        onChange={(e) => setPlayerSettings(prev => ({ ...prev, subtitles: e.target.checked }))}
-                        sx={{ '& .MuiSwitch-switchBase.Mui-checked': { color: '#4299e1' } }}
-                      />
-                    }
-                    label="Subtitles"
-                    sx={{ color: '#e2e8f0' }}
-                  />
-                </Box>
-              </CardContent>
-            </Card>
-          </Box>
-        );
-
       case "security":
         return (
           <Box>
@@ -518,7 +348,9 @@ export default function AccountPage() {
                     label="Current Password"
                     type="password"
                     value={passwordData.currentPassword}
-                    onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                    onChange={(e) => handlePasswordChange('currentPassword', e.target.value)}
+                    error={!!passwordErrors.currentPassword}
+                    helperText={passwordErrors.currentPassword}
                     sx={{ 
                       '& .MuiOutlinedInput-root': { 
                         bgcolor: '#2d3748',
@@ -531,7 +363,9 @@ export default function AccountPage() {
                     label="New Password"
                     type="password"
                     value={passwordData.newPassword}
-                    onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                    onChange={(e) => handlePasswordChange('newPassword', e.target.value)}
+                    error={!!passwordErrors.newPassword}
+                    helperText={passwordErrors.newPassword}
                     sx={{ 
                       '& .MuiOutlinedInput-root': { 
                         bgcolor: '#2d3748',
@@ -544,7 +378,9 @@ export default function AccountPage() {
                     label="Confirm New Password"
                     type="password"
                     value={passwordData.confirmPassword}
-                    onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                    onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
+                    error={!!passwordErrors.confirmPassword}
+                    helperText={passwordErrors.confirmPassword}
                     sx={{ 
                       '& .MuiOutlinedInput-root': { 
                         bgcolor: '#2d3748',
@@ -622,6 +458,34 @@ export default function AccountPage() {
                     Enable MFA
                   </Button>
                 )}
+              </CardContent>
+            </Card>
+          </Box>
+        );
+
+      case "notifications":
+        return (
+          <Box>
+            <Typography variant="h5" sx={{ mb: 3, color: "#e2e8f0", fontWeight: 600 }}>
+              Notification Settings
+            </Typography>
+            <Card sx={{ bgcolor: "#1a202c", border: "1px solid #2d3748" }}>
+              <CardContent>
+                {/* À implémenter */}
+              </CardContent>
+            </Card>
+          </Box>
+        );
+
+      case "player":
+        return (
+          <Box>
+            <Typography variant="h5" sx={{ mb: 3, color: "#e2e8f0", fontWeight: 600 }}>
+              Player Settings
+            </Typography>
+            <Card sx={{ bgcolor: "#1a202c", border: "1px solid #2d3748" }}>
+              <CardContent>
+                {/* À implémenter */}
               </CardContent>
             </Card>
           </Box>

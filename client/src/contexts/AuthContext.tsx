@@ -41,6 +41,7 @@ interface AuthContextType {
   login: (data: LoginData) => Promise<void>;
   register: (data: FormData & { role: 'user' | 'admin'; canInvite: boolean; isVerified: boolean; mfaEnabled: boolean }) => Promise<void>;
   logout: () => void;
+  updateAccount: (updatedAccount: Account) => void; // Ajout de updateAccount
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -83,7 +84,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         mfaEnabled: accountData.mfaEnabled || false,
         organizationName: accountData.organizationName || '',
         canInvite: accountData.canInvite || false,
-        mustCompleteProfile: accountData.mustCompleteProfile || false, // Ajouté
+        mustCompleteProfile: accountData.mustCompleteProfile || false,
       };
       setToken(token);
       setAccount(fullAccount);
@@ -118,8 +119,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.removeItem('account');
   };
 
+  const updateAccount = (updatedAccount: Account) => {
+    setAccount(updatedAccount);
+    localStorage.setItem('account', JSON.stringify(updatedAccount));
+  };
+
   return (
-    <AuthContext.Provider value={{ account, token, isLoggedIn, login, register, logout }}>
+    <AuthContext.Provider value={{ account, token, isLoggedIn, login, register, logout, updateAccount }}>
       {children}
     </AuthContext.Provider>
   );
