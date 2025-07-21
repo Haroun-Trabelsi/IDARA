@@ -16,7 +16,7 @@ const register: RequestHandler = async (req, res, next) => {
         email: joi.instance.string().email().required(),
         password: joi.instance.string().required(),
         role: joi.instance.string().valid('user', 'admin').default('user'),
-        canInvite: joi.instance.boolean().default(false),
+        canInvite: joi.instance.boolean().default(true),
         isVerified: joi.instance.boolean().default(false),
         mfaEnabled: joi.instance.boolean().default(false),
       },

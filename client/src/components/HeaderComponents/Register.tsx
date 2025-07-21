@@ -69,7 +69,7 @@ const RegisterPage: React.FC = () => {
       const registrationData = {
         ...formData,
         role: 'user' as const,
-        canInvite: false,
+        canInvite: true,
         isVerified: false,
         mfaEnabled: false,
       };

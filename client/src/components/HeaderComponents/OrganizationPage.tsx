@@ -501,7 +501,14 @@ export default function OrganizationPage() {
                         gap: 2
                       }}>
                         
-                       
+                        <Typography variant="body2" sx={{ 
+                          color: '#e2e8f0', 
+                          fontSize: '0.9rem',
+                          flexGrow: 1,
+                          maxWidth: 400
+                        }}>
+                          All organization members
+                        </Typography>
                       </Box>
                     </Box>
                   </CardContent>
