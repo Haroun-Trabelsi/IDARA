@@ -12,6 +12,7 @@ import Register from 'components/HeaderComponents/Register'; // Ajouter cette im
 import CompletProfil from 'components/HeaderComponents/CompleteProfil'; // Ajouter cette importation
 import Account from 'components/HeaderComponents/Account'; // Ajouter cette importation
 import Organizations from 'components/HeaderComponents/OrganizationPage'; // Ajouter cette importation
+import VerifyInbox from 'components/HeaderComponents/VerifyEmailPage'; // Ajouter cette importation
 
 const App = () => {
   return (
@@ -21,6 +22,8 @@ const App = () => {
         <Routes>
           <Route path="/" element={<ProjectManagementInterface />} />
           <Route path="/collaborator" element={<CollaboratorPage />} /> {/* Nouvelle route */}
+          <Route path="/verify-email" element={<VerifyInbox />} /> {/* Nouvelle route */}
+
           <Route path="/Projects" element={<ProjectManagementInterface />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />

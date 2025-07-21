@@ -23,7 +23,7 @@ interface Account {
   organizationName: string;
   invitedBy?: string;
   canInvite: boolean;
-  mustCompleteProfile: boolean; // Ajouté pour correspondre au modèle
+  mustCompleteProfile: boolean;
 }
 
 export interface FormData {
@@ -41,12 +41,12 @@ interface AuthContextType {
   login: (data: LoginData) => Promise<void>;
   register: (data: FormData & { role: 'user' | 'admin'; canInvite: boolean; isVerified: boolean; mfaEnabled: boolean }) => Promise<void>;
   logout: () => void;
-  updateAccount: (updatedAccount: Account) => void; // Ajout de updateAccount
+  updateAccount: (updatedAccount: Account) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: ReactNode; navigate?: (path: string) => void }> = ({ children, navigate }) => {
   const [account, setAccount] = useState<Account | null>(null);
   const [token, setToken] = useState<string | null>(null);
 
@@ -57,9 +57,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     console.log('Restauration depuis localStorage - Token:', savedToken);
     console.log('Restauration depuis localStorage - Account:', savedAccount);
     if (savedToken && savedAccount) {
-      setToken(savedToken);
       try {
         const parsedAccount = JSON.parse(savedAccount) as Account;
+        setToken(savedToken);
         setAccount(parsedAccount);
       } catch (err) {
         console.error('Erreur lors de la restauration de l\'account:', err);
@@ -99,16 +99,38 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const register = async (data: FormData & { role: 'user' | 'admin'; canInvite: boolean; isVerified: boolean; mfaEnabled: boolean }) => {
-    const response = await axios.post('/auth/register', data);
-    const { token, account: accountData } = response.data;
-    console.log('Nouveau token reçu (register):', token);
-    console.log('Données de l\'account reçues (register):', accountData);
-    setToken(token);
-    setAccount(accountData);
-    localStorage.setItem('token', token);
-    localStorage.setItem('account', JSON.stringify(accountData));
-    console.log('Token sauvegardé dans localStorage (register):', localStorage.getItem('token'));
-    console.log('Account sauvegardé dans localStorage (register):', localStorage.getItem('account'));
+    try {
+      const response = await axios.post('/auth/register', data);
+      const { token, data: accountData } = response.data;
+      console.log('Nouveau token reçu (register):', token);
+      console.log('Données de l\'account reçues (register):', accountData);
+
+      const fullAccount: Account = {
+        ...accountData,
+        email: data.email, // Forcer l'email depuis les données d'entrée si absent
+        role: data.role || 'user',
+        isVerified: data.isVerified || false,
+        mfaEnabled: data.mfaEnabled || false,
+        organizationName: data.organizationName || '',
+        canInvite: data.canInvite || false,
+        mustCompleteProfile: false,
+      };
+
+      setToken(token);
+      setAccount(fullAccount);
+      localStorage.setItem('token', token);
+      localStorage.setItem('account', JSON.stringify(fullAccount));
+      console.log('Token sauvegardé dans localStorage (register):', localStorage.getItem('token'));
+      console.log('Account sauvegardé dans localStorage (register):', localStorage.getItem('account'));
+
+      // Redirection via prop si disponible
+      if (navigate) {
+        navigate('/verify-email');
+      }
+    } catch (error: any) {
+      console.error('Erreur lors de l\'inscription:', error);
+      throw error;
+    }
   };
 
   const logout = () => {

@@ -4,7 +4,7 @@ import errorHandler from '../middlewares/error-handler'
 import register from '../controllers/auth/register'
 import login from '../controllers/auth/login'
 import loginWithToken from '../controllers/auth/login-with-token'
-import verify from '../controllers/auth/verify'
+import { verify, resendVerification } from '../controllers/auth/verify';
 import { setupMFA, verifyMFA } from '../controllers/auth/mfaController'
 
 import { editProfile, changePassword } from '../controllers/auth/editProfile';
@@ -21,9 +21,9 @@ router.post('/login', [], login, errorHandler)
 router.get('/login', [checkBearerToken], loginWithToken, errorHandler)
 
 
-router.get('/verify/:token', verify)
-
-router.post('/verify', verify) 
+router.get('/verify-email/:token', verify); // Pour GET avec token
+router.post('/verify-email', verify);     // Pour POST avec code et email
+router.post('/resend-verification', resendVerification); 
 
 router.post('/mfa/setup', [checkBearerToken], setupMFA, errorHandler) // Requiert un token pour sécurité
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState} from "react";
 import { 
   AppBar, 
   Toolbar, 
@@ -40,29 +40,11 @@ export default function Header() {
   const [bookmarksAnchorEl, setBookmarksAnchorEl] = useState<null | HTMLElement>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [popover, setPopover] = useState(false);
-  const [projects, setProjects] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [projects] = useState<string[]>([]);
+  const [loading] = useState(true);
+  const [error] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        const response = await fetch("http://localhost:8080/api/projects");
-        if (!response.ok) {
-          throw new Error(`Failed to fetch projects: ${response.status}`);
-        }
-        const data = await response.json();
-        setProjects(data);
-      } catch (err) {
-        console.error("❌ Fetch error:", err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch projects');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProjects();
-  }, []);
+ 
 
   const openPopover = (e: React.MouseEvent<HTMLButtonElement>) => {
     setPopover(true);
