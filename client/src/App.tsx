@@ -13,6 +13,8 @@ import CompletProfil from 'components/HeaderComponents/CompleteProfil'; // Ajout
 import Account from 'components/HeaderComponents/Account'; // Ajouter cette importation
 import Organizations from 'components/HeaderComponents/OrganizationPage'; // Ajouter cette importation
 import VerifyInbox from 'components/HeaderComponents/VerifyEmailPage'; // Ajouter cette importation
+import AdminDashboard from 'components/AdminDashboard/home'; // Ajouter cette importation
+import Video from 'components/Project-components/CompressVideo'; // Ajouter cette importation
 
 const App = () => {
   return (
@@ -30,6 +32,8 @@ const App = () => {
           <Route path="/CompleteProfil" element={<CompletProfil />} />
           <Route path="/Account" element={<Account />} />
           <Route path="/organizations" element={<Organizations />} />
+          <Route path="/AdminDashboard" element={<AdminDashboard />} />
+          <Route path="/video" element={<Video />} />
 
           <Route path="/error" element={<Error />} />
 

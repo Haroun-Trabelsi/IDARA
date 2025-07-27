@@ -15,9 +15,11 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "fluent-ffmpeg": "^2.1.3",
     "joi": "^17.13.3",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.16.0",
+    "multer": "^2.0.2",
     "nodemailer": "^7.0.3",
     "qrcode": "^1.5.4",
     "speakeasy": "^2.0.0"
@@ -26,11 +28,14 @@
     "@types/bcrypt": "^5.0.2",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.3",
+    "@types/fluent-ffmpeg": "^2.1.27",
     "@types/jsonwebtoken": "^9.0.9",
+    "@types/multer": "^2.0.0",
     "@types/node": "^22.13.12",
     "@types/nodemailer": "^6.4.17",
     "@types/qrcode": "^1.5.5",
     "@types/speakeasy": "^2.0.10",
+    "ffmpeg-static": "^5.2.0",
     "typescript": "^5.8.2"
   }
 }

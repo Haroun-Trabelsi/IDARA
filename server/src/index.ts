@@ -7,7 +7,14 @@ import { PORT } from './constants/index'
 import authRoutes from './routes/auth'
 import projectsRouter from './routes/projects'
 import collaborator from './routes/collaborator'
+import video from './routes/VideoRoutesTest'
+import ffmpegStatic from 'ffmpeg-static';
+import ffmpeg from 'fluent-ffmpeg';
 
+// Configurer le chemin de FFmpeg
+if (ffmpegStatic) {
+  ffmpeg.setFfmpegPath(ffmpegStatic);
+}
 const bootstrap = async () => {
   await mongo.connect()
 
@@ -22,6 +29,7 @@ const bootstrap = async () => {
   app.use('/auth', authRoutes)
   app.use('/api', projectsRouter);
   app.use('/col', collaborator);
+  app.use('/vid', video);
 
   app.listen(PORT, () => {
     console.log(`✅ Server is listening on port: ${PORT}`)
