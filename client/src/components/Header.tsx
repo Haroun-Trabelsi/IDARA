@@ -121,7 +121,7 @@ export default function Header() {
           </Menu>
 
           <Button sx={{ color: "#e2e8f0", textTransform: "none", fontSize: "14px", fontWeight: 400, "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)" } }}>
-            About U
+            About Us
           </Button>
           
         </Box>

@@ -51,7 +51,7 @@ const darkTheme = createTheme({
 export default function ProjectManagementInterface() {
   const [ProjectData, setProjectData] = useState<Task[]>();
   const [filterText, setFilterText] = useState("");
-    const { selectedProject } = useProject();
+  const { selectedProject } = useProject();
 
   useEffect(() => {
     if (!selectedProject) return; // only fetch if projectName exists
@@ -130,58 +130,20 @@ export default function ProjectManagementInterface() {
               />
             </Box>
 
-            {/* Task Summary */}
-            <Box sx={{ borderBottom: "1px solid #2d3748", bgcolor: "#1a202c", px: 2, py: 1.5 }}>
-              <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                  <Typography variant="body2" color="#718096" sx={{ fontSize: "13px" }}>
-                    Tasks
-                  </Typography>
-                  <Typography variant="body2" color="#718096" sx={{ fontSize: "13px" }}>
-                    Count (task)
-                  </Typography>
-                  <Typography variant="body2" color="#718096" sx={{ fontSize: "13px" }}>
-                   57
-                  </Typography>
-                </Box>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                  <Typography variant="body2" color="#718096" sx={{ fontSize: "13px" }}>
-                    Done %
-                  </Typography>
-                  <Typography variant="body2" color="#718096" sx={{ fontSize: "13px" }}>
-                    84.21%
-                  </Typography>
-                  <Typography variant="body2" color="#718096" sx={{ fontSize: "13px" }}>
-                    Sum
-                  </Typography>
-                  <Typography variant="body2" color="#718096" sx={{ fontSize: "13px" }}>
-                    2024-09-10
-                  </Typography>
-                  <Typography variant="body2" color="#718096" sx={{ fontSize: "13px" }}>
-                    Sum
-                  </Typography>
-                  <Typography variant="body2" color="#718096" sx={{ fontSize: "13px" }}>
-                    344.0
-                  </Typography>
-                  <Typography variant="body2" color="#718096" sx={{ fontSize: "13px" }}>
-                    Sum
-                  </Typography>
-                  <Typography variant="body2" color="#718096" sx={{ fontSize: "13px" }}>
-                    119.88
-                  </Typography>
-                </Box>
-              </Box>
-            </Box>
-
-            {/* Task Table Component */}
             
-{Array.isArray(ProjectData) && ProjectData.length > 0 ? (
-  <TaskTable tasks={ProjectData} setTasks={setProjectData} />
+            
+{Array.isArray(ProjectData) && ProjectData.length > 0 && selectedProject ? (
+  <TaskTable
+    project={selectedProject.name}
+    tasks={ProjectData}
+    setTasks={setProjectData}
+  />
 ) : (
   <Typography variant="body2" color="textSecondary">
     No tasks available for this project.
   </Typography>
 )}
+
 
           </Box>
         </Box>

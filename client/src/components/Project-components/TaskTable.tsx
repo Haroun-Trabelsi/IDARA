@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   Paper,
   Table,
@@ -24,6 +24,17 @@ import {
   PlayCircleOutline,
 } from "@mui/icons-material"
 import React from "react"
+import { useProject } from '../../contexts/ProjectContext';
+
+
+  interface Difficulty {
+  predicted_class: string;
+  probabilities: {
+    Easy: string;
+    Medium: string;
+    Hard: string;
+  }
+}
 
 export interface Task {
   videos: any
@@ -39,18 +50,20 @@ export interface Task {
   actualHours: number;
   level: number; // Keep if you want to apply styling (e.g., indentation)
   icon?: string;
+  Difficulty?: Difficulty;
 }
 
 
 
 
 interface TaskTableProps {
+  project : String;
   tasks: Task[];
   setTasks: React.Dispatch<React.SetStateAction<Task[] | undefined>>;
 }
 
 
-export default function TaskTable({ tasks, setTasks }: TaskTableProps) {
+export default function TaskTable({ project ,tasks, setTasks }: TaskTableProps) {
 
 
   const getStatusColor = (status: string) => {
@@ -67,6 +80,62 @@ export default function TaskTable({ tasks, setTasks }: TaskTableProps) {
         return "#6b7280"
     }
   }
+async function fetchDifficulty(taskId: string): Promise<Difficulty | null> {
+  try {
+    if (!selectedProject || !selectedProject.name) {
+      console.error("No project selected.");
+      return null;
+    }
+
+    const res = await fetch(`http://localhost:8080/results/results_by_task?project=${selectedProject.name}`);
+    if (!res.ok) throw new Error("Failed to fetch difficulty");
+
+    const data = await res.json();
+    const allResults = data.results;
+
+    for (const taskMap of Object.values(allResults)) {
+      if (taskMap && typeof taskMap === "object") {
+        const raw = (taskMap as Record<string, any>)[taskId];
+        if (
+          raw &&
+          typeof raw.predicted_class === "string" &&
+          raw.probabilities &&
+          typeof raw.probabilities.Easy === "string" &&
+          typeof raw.probabilities.Medium === "string" &&
+          typeof raw.probabilities.Hard === "string"
+        ) {
+          return raw as Difficulty;
+        }
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error(`Error fetching difficulty for task ${taskId}:`, error);
+    return null;
+  }
+}
+
+async function loadDifficultiesForTasks(tasksToLoad: Task[]) {
+  const updatedTasks = await Promise.all(
+    tasksToLoad.map(async (task) => {
+      const difficulty = await fetchDifficulty(task.id);
+      return difficulty ? { ...task, Difficulty: difficulty } : task;
+    })
+  );
+  setTasks(updatedTasks);
+}
+const [hasLoadedDifficulties, setHasLoadedDifficulties] = useState(false);
+
+useEffect(() => {
+  if (!hasLoadedDifficulties && tasks.length > 0) {
+    loadDifficultiesForTasks(tasks);
+    setHasLoadedDifficulties(true);
+    console.log("Difficulties loaded for tasks:", tasks);
+  }
+}, [tasks, hasLoadedDifficulties]);
+
+const { selectedProject } = useProject();
 const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
 const [videoModalOpen, setVideoModalOpen] = useState(false);
 const [videoOptions, setVideoOptions] = useState<any[]>([]);
@@ -156,7 +225,24 @@ const handleVideoSelect = (url: string) => {
 const [videoUrl, setVideoUrl] = React.useState<string | null>(null);
 const [open, setOpen] = React.useState(false);
 const [loadingTaskId, setLoadingTaskId] = useState<string | null>(null);
-const [taskResults, setTaskResults] = useState<Record<string, any>>({});
+const [taskJobIds, setTaskJobIds] = useState<Record<string, string>>({});
+
+const cancelJob = async (jobId: string) => {
+  try {
+    const res = await fetch(`http://localhost:8089/cancel/${jobId}`, {
+      method: "POST",
+    });
+    const data = await res.json();
+    if (data.status === "cancelled") {
+      alert("Processing cancelled.");
+      // Optional: update UI to reflect cancellation
+    } else {
+      alert("Could not cancel: " + data.message);
+    }
+  } catch (err) {
+    console.error("Cancellation failed:", err);
+  }
+};
 
 
 const handleOpenVideo = (url: string) => {
@@ -170,68 +256,82 @@ const handleCloseVideo = () => {
 
 async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
   for (const task of selectedTaskObjects) {
-    const video = task.videos?.[0]?.value;
+    const videoUrl = task.videos?.[0]?.value;
 
-    if (!video?.value) {
+    if (!videoUrl) {
       alert(`No video assigned to task ${task.id}. Please select a video before sending.`);
       continue;
     }
 
     try {
-      setLoadingTaskId(task.id); // start loading indicator for this task
+      setLoadingTaskId(task.id); // UI indicator
 
-      const response = await fetch(video.value);
-      const blob = await response.blob();
+      // Delay first request by 3 seconds
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      // Step 1: Download video
+      const videoResponse = await fetch(videoUrl.value);
+      console.log(videoUrl.value);
+
+      if (!videoResponse.ok) throw new Error(`Failed to fetch video for task ${task.id}`);
+      const blob = await videoResponse.blob();
 
       const formData = new FormData();
       formData.append("file", blob, `${task.id}.mp4`);
+      formData.append("original_filename", `Sequence - ${task.sequence} Task - ${task.description} Project Name - ${project}.mp4`);
 
-      const uploadRes = await fetch("http://localhost:8089/upload_video", {
+      // Step 2: Upload to server
+      const uploadResponse = await fetch("http://localhost:8089/upload_video", {
         method: "POST",
         body: formData,
       });
 
-      if (!uploadRes.ok) {
-        throw new Error(`Server returned ${uploadRes.status}`);
+      if (!uploadResponse.ok) {
+        throw new Error(`Upload failed with status ${uploadResponse.status}`);
       }
 
-      const { job_id } = await uploadRes.json();
+      const { job_id } = await uploadResponse.json();
       console.log(`Video uploaded for task ${task.id}, job ID: ${job_id}`);
+      setTaskJobIds(prev => ({ ...prev, [task.id]: job_id }));
 
-      // Poll result until status is "done"
+      // Step 3: Poll for result
       const pollUrl = `http://localhost:8089/result/${job_id}`;
+      const maxAttempts = 30;
+      let resultReceived = false;
 
-      const pollResult = async () => {
-        while (true) {
-          const res = await fetch(pollUrl);
-          const data = await res.json();
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const res = await fetch(pollUrl);
+        const data = await res.json();
 
-          if (data.status === "done") {
-            console.log(`Task ${task.id} done:`, data.result);
-            setTaskResults(prev => ({ ...prev, [task.id]: data.result }));
-            setLoadingTaskId(null); // stop loading indicator
-            break;
-          } else if (data.status === "processing") {
-            console.log(`Task ${task.id} is processing...`);
-          } else {
-            console.error(`Unexpected status for task ${task.id}:`, data);
-            setLoadingTaskId(null);
-            break;
-          }
-
-          await new Promise(resolve => setTimeout(resolve, 1000)); // wait 1 sec before retry
+        if (data.status === "done" && data.result) {
+          console.log(`Task ${task.id} completed:`, data.result);
+          resultReceived = true;
+          break;
+        } else if (data.status === "processing") {
+          console.log(`Task ${task.id} is still processing (attempt ${attempt + 1})`);
+        } else {
+          console.error(`Unexpected status or response for task ${task.id}:`, data);
+          break;
         }
-      };
 
-      await pollResult();
+        await new Promise(resolve => setTimeout(resolve, 1000 * Math.min(attempt + 1, 5))); // backoff
+      }
+
+      if (!resultReceived) {
+        alert(`Task ${task.id} timed out. Please try again later.`);
+      }
 
     } catch (err) {
-      console.error(`Failed to process task ${task.id}`, err);
+      console.error(`Error processing task ${task.id}:`, err);
       alert(`Failed to process video for task ${task.id}.`);
+    } finally {
       setLoadingTaskId(null);
     }
   }
 }
+
+
+
 
 
 
@@ -498,25 +598,37 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
                   {task.actualHours.toFixed(2)}
                 </Typography>
               </TableCell>
-              <TableCell>
-    {loadingTaskId === task.id ? (
-      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-        <CircularProgress size={20} sx={{ mr: 1 }} />
-        <Typography variant="body2" color="textSecondary">Processing...</Typography>
-      </Box>
-    ) : taskResults[task.id] ? (
-      <Box>
-        <Typography variant="body2" fontWeight="bold">
-          {taskResults[task.id].predicted_class} ({taskResults[task.id].confidence})
-        </Typography>
-        <Typography variant="caption" color="textSecondary">
-          Easy: {taskResults[task.id].probabilities.Easy}, Medium: {taskResults[task.id].probabilities.Medium}, Hard: {taskResults[task.id].probabilities.Hard}
-        </Typography>
-      </Box>
-    ) : (
-      <Typography variant="body2" color="textSecondary">Not processed</Typography>
-    )}
-  </TableCell>
+<TableCell>
+  {loadingTaskId === task.id ? (
+    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+      <CircularProgress size={20} sx={{ mr: 1 }} />
+      <Typography variant="body2" color="textSecondary">Processing...</Typography>
+      <Button
+        color="error"
+        variant="outlined"
+        onClick={() => cancelJob(taskJobIds[task.id])}
+        disabled={!taskJobIds[task.id]}
+      >
+        Cancel
+      </Button>
+    </Box>
+  ) : task.Difficulty ? (
+    <Box>
+      <Typography variant="body2" fontWeight="bold">
+        {task.Difficulty.predicted_class}
+      </Typography>
+      <Typography variant="caption" color="textSecondary">
+        Easy: {task.Difficulty.probabilities?.Easy || "N/A"}, 
+        Medium: {task.Difficulty.probabilities?.Medium || "N/A"}, 
+        Hard: {task.Difficulty.probabilities?.Hard || "N/A"}
+      </Typography>
+    </Box>
+  ) : (
+    <Typography variant="body2" color="textSecondary">Not processed</Typography>
+  )}
+</TableCell>
+
+
             </TableRow>
           ))}
         </TableBody>
@@ -572,51 +684,53 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
     </Typography>
 
     {videoOptions
-      .filter((video) => video.fileType === ".mp4")
-      .map((video, index) => (
-        <Box key={index}>
-          <video
-            src={video.value}
-            controls
-            style={{
-              width: "100%",
-              maxHeight: "300px",
-              borderRadius: "4px",
-              backgroundColor: "black",
-            }}
-          />
+  .filter((video) => video.fileType === ".mp4" || video.fileType === ".mov")
+  .slice(-4)
+  .map((video, index) => (
+    <Box key={index}>
+      <video
+        src={video.value}
+        controls
+        style={{
+          width: "100%",
+          maxHeight: "300px",
+          borderRadius: "4px",
+          backgroundColor: "black",
+        }}
+      />
 
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              mt: 1,
-              color: "#cbd5e0",
-              fontSize: "13px",
-            }}
-          >
-            <span>
-              <b>Name:</b> {video.name}
-            </span>
-            <span>
-              <b>Type:</b> {video.fileType}
-            </span>
-            <span>
-              <b>Date:</b> {new Date(video.date).toLocaleDateString()}
-            </span>
-          </Box>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          mt: 1,
+          color: "#cbd5e0",
+          fontSize: "13px",
+        }}
+      >
+        <span>
+          <b>Name:</b> {video.name}
+        </span>
+        <span>
+          <b>Type:</b> {video.fileType}
+        </span>
+        <span>
+          <b>Date:</b> {new Date(video.date).toLocaleDateString()}
+        </span>
+      </Box>
 
-          <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={() => handleVideoSelect(video)}
-            >
-              Select
-            </Button>
-          </Box>
-        </Box>
-      ))}
+      <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
+        <Button
+          size="small"
+          variant="outlined"
+          onClick={() => handleVideoSelect(video)}
+        >
+          Select
+        </Button>
+      </Box>
+    </Box>
+  ))}
+
   </DialogContent>
 </Dialog>
 

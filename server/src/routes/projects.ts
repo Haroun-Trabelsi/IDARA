@@ -112,33 +112,51 @@ router.get('/projects/:projectName', async (req, res) => {
   }
 });
 
-// GET /task/:taskId/components
 router.get('/task/:taskId/components', async (req, res) => {
   const { taskId } = req.params;
   try {
     const sessionInstance = await session;
-    const query = await sessionInstance.query(`
+
+    // 1. Get the shot ID from the task's parent
+    const taskQuery = await sessionInstance.query(`
+      select parent.id from Task where id is ${taskId}
+    `);
+
+    const shotId = taskQuery.data?.[0]?.parent?.id;
+    if (!shotId) {
+      return res.status(404).json({ error: 'Shot context not found for task' });
+    }
+
+    // 2. Query AssetVersion under that Shot context
+    const versions = await sessionInstance.query(`
       select
+        asset.name,
         components.name,
         components.file_type,
         components.component_locations.url,
         date
       from AssetVersion
-      where task.id is ${taskId}
+      where asset.parent.id is ${shotId}
       order by date desc
     `);
-    const videos = query.data.map(av => ({
-      name: av.components?.[0]?.name || 'Unnamed',
-      fileType: av.components?.[0]?.file_type || '',
-      url: av.components?.[0]?.component_locations?.[0]?.url || '',
-      date: av.date
-    }));
-    res.json(videos.filter(v => v.url));
+
+    const videos = versions.data
+      .map((av: any) => ({
+        name: av.components?.[0]?.name || av.asset?.name || 'Unnamed',
+        fileType: av.components?.[0]?.file_type || '',
+        url: av.components?.[0]?.component_locations?.[0]?.url || '',
+        date: av.date,
+      }))
+      .filter((v: any) => v.url);
+
+    res.json(videos);
+
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Failed to fetch components" });
+    res.status(500).json({ error: 'Failed to fetch video components from shot context' });
   }
 });
+
 
 
 
