@@ -80,58 +80,53 @@ export default function TaskTable({ project ,tasks, setTasks }: TaskTableProps) 
         return "#6b7280"
     }
   }
-async function fetchDifficulty(taskId: string): Promise<Difficulty | null> {
+async function fetchAllDifficulties(): Promise<Record<string, Record<string, Difficulty>>> {
   try {
     if (!selectedProject || !selectedProject.name) {
       console.error("No project selected.");
-      return null;
+      return {};
     }
 
     const res = await fetch(`http://localhost:8080/results/results_by_task?project=${selectedProject.name}`);
     if (!res.ok) throw new Error("Failed to fetch difficulty");
 
     const data = await res.json();
-    const allResults = data.results;
-
-    for (const taskMap of Object.values(allResults)) {
-      if (taskMap && typeof taskMap === "object") {
-        const raw = (taskMap as Record<string, any>)[taskId];
-        if (
-          raw &&
-          typeof raw.predicted_class === "string" &&
-          raw.probabilities &&
-          typeof raw.probabilities.Easy === "string" &&
-          typeof raw.probabilities.Medium === "string" &&
-          typeof raw.probabilities.Hard === "string"
-        ) {
-          return raw as Difficulty;
-        }
-      }
-    }
-
-    return null;
+    return data.results || {};
   } catch (error) {
-    console.error(`Error fetching difficulty for task ${taskId}:`, error);
-    return null;
+    console.error("Error fetching difficulties:", error);
+    return {};
   }
 }
 
 async function loadDifficultiesForTasks(tasksToLoad: Task[]) {
-  const updatedTasks = await Promise.all(
-    tasksToLoad.map(async (task) => {
-      const difficulty = await fetchDifficulty(task.id);
-      return difficulty ? { ...task, Difficulty: difficulty } : task;
-    })
-  );
+  const allResults = await fetchAllDifficulties();
+
+  const updatedTasks = tasksToLoad.map((task) => {
+    const sequenceKey = task.sequence;
+    const descriptionKey = task.description;
+
+    if (
+      sequenceKey &&
+      descriptionKey &&
+      allResults[sequenceKey] &&
+      allResults[sequenceKey][descriptionKey]
+    ) {
+      const difficulty = allResults[sequenceKey][descriptionKey];
+      return { ...task, Difficulty: difficulty };
+    }
+
+    return task;
+  });
+
   setTasks(updatedTasks);
 }
+
 const [hasLoadedDifficulties, setHasLoadedDifficulties] = useState(false);
 
 useEffect(() => {
   if (!hasLoadedDifficulties && tasks.length > 0) {
     loadDifficultiesForTasks(tasks);
     setHasLoadedDifficulties(true);
-    console.log("Difficulties loaded for tasks:", tasks);
   }
 }, [tasks, hasLoadedDifficulties]);
 
@@ -306,6 +301,11 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
         if (data.status === "done" && data.result) {
           console.log(`Task ${task.id} completed:`, data.result);
           resultReceived = true;
+          setTasks(prev =>
+            (prev || []).map(t =>
+              t.id === task.id ? { ...t, Difficulty: data.result as Difficulty } : t
+            )
+          );
           break;
         } else if (data.status === "processing") {
           console.log(`Task ${task.id} is still processing (attempt ${attempt + 1})`);
