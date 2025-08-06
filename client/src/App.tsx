@@ -42,8 +42,17 @@ const App = () => {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route path="/" element={<ProjectManagementInterface />} />
-          <Route path="/Projects" element={<ProjectManagementInterface />} />
+          
+          <Route path="/" element={
+            <DefaultLayout>
+          <ProjectManagementInterface />
+          </DefaultLayout>} />
+
+          <Route path="/Projects" element={
+            <DefaultLayout>
+              <ProjectManagementInterface />
+              </DefaultLayout>
+            } />
           <Route
             path="/login"
             element={
