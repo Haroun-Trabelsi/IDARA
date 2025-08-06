@@ -65,7 +65,6 @@ const RegisterPage: React.FC = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    // Réinitialiser l'erreur pour ce champ lors de la modification
     setErrors(prev => ({ ...prev, [name]: '' }));
   };
 
@@ -74,16 +73,14 @@ const RegisterPage: React.FC = () => {
     setLoading(true);
     setErrors({ name: '', surname: '', organizationName: '', email: '', password: '' });
 
-    // Validation du profil (name, surname, email)
     const profileValidation = validateProfile({
       name: formData.name,
       surname: formData.surname,
       email: formData.email
     });
 
-    // Validation du mot de passe
     const passwordValidation = validatePassword({
-      currentPassword: formData.password, // On utilise password comme currentPassword
+      currentPassword: formData.password,
       newPassword: formData.password,
       confirmPassword: formData.password
     });
@@ -109,8 +106,10 @@ const RegisterPage: React.FC = () => {
         mfaEnabled: false,
       };
       await register(registrationData);
+      console.log('Registration successful, navigating to /verify-email');
       navigate('/verify-email');
     } catch (err: any) {
+      console.error('Registration error:', err);
       setErrors(prev => ({
         ...prev,
         email: err.response?.data?.message.includes('email') ? err.response?.data?.message : prev.email,

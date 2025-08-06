@@ -1,48 +1,167 @@
-import React from 'react'
-import AuthModal from 'components/AuthModal'
-import Header from 'components/Header'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import 'styles/ReactWelcome.css'
-import About from 'components/About'
-import ProjectManagementInterface from 'components/Projects'
-import CollaboratorPage from 'components/HeaderComponents/CollaboratorPage'; // Ajouter cette importation
-import Login from 'components/HeaderComponents/Login'; // Ajouter cette importation
-import Error from 'components/HeaderComponents/error'; // Ajouter cette importation
-import Register from 'components/HeaderComponents/Register'; // Ajouter cette importation
-import CompletProfil from 'components/HeaderComponents/CompleteProfil'; // Ajouter cette importation
-import Account from 'components/HeaderComponents/Account'; // Ajouter cette importation
-import Organizations from 'components/HeaderComponents/OrganizationPage'; // Ajouter cette importation
-import VerifyInbox from 'components/HeaderComponents/VerifyEmailPage'; // Ajouter cette importation
-import AdminDashboard from 'components/AdminDashboard/home'; // Ajouter cette importation
-import Video from 'components/Project-components/CompressVideo'; // Ajouter cette importation
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import AuthModal from 'components/AuthModal';
+import Header from 'components/Header';
+import 'styles/ReactWelcome.css';
+import About from 'components/About';
+import ProjectManagementInterface from 'components/Projects';
+import CollaboratorPage from 'components/HeaderComponents/CollaboratorPage';
+import Login from 'components/HeaderComponents/Login';
+import Error from 'components/HeaderComponents/error';
+import Register from 'components/HeaderComponents/Register';
+import CompletProfil from 'components/HeaderComponents/CompleteProfil';
+import Account from 'components/HeaderComponents/Account';
+import VerifyInbox from 'components/HeaderComponents/VerifyEmailPage';
+import AdminDashboard from 'components/AdminDashboard/AdminDashboard';
+import Video from 'components/Project-components/CompressVideo';
+import Organizations from 'components/ManageOrganization/OrganizationPage';
+import { AuthProvider } from 'contexts/AuthContext';
+import AuthGuard from 'utils/AuthGuard';
+import RoleGuard from 'utils/RoleGuard';
+
+const DefaultLayout = ({ children }: { children: React.ReactNode }) => (
+  <div className="min-h-screen flex flex-col bg-gray-900 text-gray-300 w-full">
+    <Header />
+    {children}
+    <AuthModal />
+    <About />
+  </div>
+);
+
+const AdminLayout = ({ children }: { children: React.ReactNode }) => (
+  <div className="min-h-screen bg-gray-900 text-gray-300 w-full">
+    {children}
+  </div>
+);
 
 const App = () => {
   return (
     <BrowserRouter>
-      <div className='min-h-screen flex flex-col bg-gray-900 text-gray-300 w-full'>
-        <Header />
+      <AuthProvider>
         <Routes>
-          <Route path="/" element={<ProjectManagementInterface />} />
-          <Route path="/collaborator" element={<CollaboratorPage />} /> {/* Nouvelle route */}
-          <Route path="/verify-email" element={<VerifyInbox />} /> {/* Nouvelle route */}
+          {/* Routes publiques (pas besoin d'authentification) */}
+          <Route
+            path="/login"
+            element={
+              <DefaultLayout>
+                <Login />
+              </DefaultLayout>
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              <DefaultLayout>
+                <Register />
+              </DefaultLayout>
+            }
+          />
+          <Route
+            path="/error"
+            element={
+              <DefaultLayout>
+                <Error />
+              </DefaultLayout>
+            }
+          />
 
-          <Route path="/Projects" element={<ProjectManagementInterface />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/CompleteProfil" element={<CompletProfil />} />
-          <Route path="/Account" element={<Account />} />
-          <Route path="/organizations" element={<Organizations />} />
-          <Route path="/AdminDashboard" element={<AdminDashboard />} />
-          <Route path="/video" element={<Video />} />
-
-          <Route path="/error" element={<Error />} />
-
+          {/* Routes protégées avec AuthGuard (pour utilisateurs connectés) */}
+          <Route
+            path="/"
+            element={
+              <DefaultLayout>
+                <AuthGuard>
+                  <ProjectManagementInterface />
+                </AuthGuard>
+              </DefaultLayout>
+            }
+          />
+          <Route
+            path="/collaborator"
+            element={
+              <DefaultLayout>
+                <AuthGuard>
+                  <CollaboratorPage />
+                </AuthGuard>
+              </DefaultLayout>
+            }
+          />
+          <Route
+            path="/verify-email"
+            element={
+              <DefaultLayout>
+                <AuthGuard>
+                  <VerifyInbox />
+                </AuthGuard>
+              </DefaultLayout>
+            }
+          />
+          <Route
+            path="/Projects"
+            element={
+              <DefaultLayout>
+                <AuthGuard>
+                  <ProjectManagementInterface />
+                </AuthGuard>
+              </DefaultLayout>
+            }
+          />
+          <Route
+            path="/CompleteProfil"
+            element={
+              <DefaultLayout>
+                <AuthGuard>
+                  <CompletProfil />
+                </AuthGuard>
+              </DefaultLayout>
+            }
+          />
+          <Route
+            path="/Account"
+            element={
+              <DefaultLayout>
+                <AuthGuard>
+                  <Account />
+                </AuthGuard>
+              </DefaultLayout>
+            }
+          />
+          <Route
+            path="/organizations"
+            element={
+              <DefaultLayout>
+                <AuthGuard>
+                  <Organizations />
+                </AuthGuard>
+              </DefaultLayout>
+            }
+          />
+          <Route
+            path="/video"
+            element={
+              <DefaultLayout>
+                <AuthGuard>
+                  <Video />
+                </AuthGuard>
+              </DefaultLayout>
+            }
+          />
+          <Route
+            path="/AdminDashboard"
+            element={
+              <AdminLayout>
+                <AuthGuard>
+                  <RoleGuard isAdminRoute={true}>
+                    <AdminDashboard />
+                  </RoleGuard>
+                </AuthGuard>
+              </AdminLayout>
+            }
+          />
         </Routes>
-        <AuthModal />
-        <About />
-      </div>
+      </AuthProvider>
     </BrowserRouter>
-  )
-}
+  );
+};
 
-export default App
+export default App;

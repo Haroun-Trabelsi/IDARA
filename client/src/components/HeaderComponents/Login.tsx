@@ -65,11 +65,13 @@ const LoginPage: React.FC = () => {
 
   const isSubmitDisabled = !formData.email || !formData.password;
 
-  // Vérification après mise à jour de l'account
+  // Vérification après mise à jour de l'account avec logique basée sur le rôle
   useEffect(() => {
     if (account) {
       if (account.mustCompleteProfile === true) {
         navigate('/CompleteProfil');
+      } else if (account.role === 'admin') {
+        navigate('/AdminDashboard');
       } else {
         navigate('/');
       }

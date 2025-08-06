@@ -6,8 +6,10 @@ import mongo from './utils/mongo' // (database)
 import { PORT } from './constants/index'
 import authRoutes from './routes/auth'
 import projectsRouter from './routes/projects'
-import collaborator from './routes/collaborator'
+import collaborator from './routes/Manage_Organization'
 import video from './routes/VideoRoutesTest'
+import Admin from './routes/AdminDashboard'
+
 import ffmpegStatic from 'ffmpeg-static';
 import ffmpeg from 'fluent-ffmpeg';
 
@@ -30,6 +32,7 @@ const bootstrap = async () => {
   app.use('/api', projectsRouter);
   app.use('/col', collaborator);
   app.use('/vid', video);
+  app.use('/api/admin', Admin);
 
   app.listen(PORT, () => {
     console.log(`✅ Server is listening on port: ${PORT}`)

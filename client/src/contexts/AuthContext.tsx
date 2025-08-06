@@ -24,6 +24,10 @@ interface Account {
   invitedBy?: string;
   canInvite: boolean;
   mustCompleteProfile: boolean;
+  organizationSize: number;
+  feedbackText?: string;
+  featureSuggestions?: string[];
+  rating?: number;
 }
 
 export interface FormData {
@@ -42,20 +46,25 @@ interface AuthContextType {
   register: (data: FormData & { role: 'user' | 'admin'; canInvite: boolean; isVerified: boolean; mfaEnabled: boolean }) => Promise<void>;
   logout: () => void;
   updateAccount: (updatedAccount: Account) => void;
+  checkAuth: () => boolean;
+  isLoading: boolean; // Nouvel état de chargement
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: ReactNode; navigate?: (path: string) => void }> = ({ children, navigate }) => {
-  const [account, setAccount] = useState<Account | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+// Initialisation synchrone à partir de localStorage
+const initialToken = localStorage.getItem('token');
+const initialAccount = initialToken ? (JSON.parse(localStorage.getItem('account') || '{}') as Account) : null;
 
-  // Restaurer l'état d'authentification depuis localStorage au chargement
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [account, setAccount] = useState<Account | null>(initialAccount);
+  const [token, setToken] = useState<string | null>(initialToken);
+  const [isLoading, setIsLoading] = useState(true); // État de chargement
+
   useEffect(() => {
+    // Vérification et mise à jour de l'état une seule fois
     const savedToken = localStorage.getItem('token');
     const savedAccount = localStorage.getItem('account');
-    console.log('Restauration depuis localStorage - Token:', savedToken);
-    console.log('Restauration depuis localStorage - Account:', savedAccount);
     if (savedToken && savedAccount) {
       try {
         const parsedAccount = JSON.parse(savedAccount) as Account;
@@ -65,9 +74,12 @@ export const AuthProvider: React.FC<{ children: ReactNode; navigate?: (path: str
         console.error('Erreur lors de la restauration de l\'account:', err);
         localStorage.removeItem('token');
         localStorage.removeItem('account');
+        setToken(null);
+        setAccount(null);
       }
     }
-  }, []);
+    setIsLoading(false); // Fin du chargement après restauration
+  }, []); // Exécuté une seule fois au montage
 
   const isLoggedIn = !!account && !!token;
 
@@ -75,8 +87,6 @@ export const AuthProvider: React.FC<{ children: ReactNode; navigate?: (path: str
     try {
       const response = await axios.post('/auth/login', { email: data.email, password: data.password });
       const { token, data: accountData } = response.data;
-      console.log('Nouveau token reçu:', token);
-      console.log('Données de l\'account reçues:', accountData);
       const fullAccount: Account = {
         ...accountData,
         role: accountData.role || 'user',
@@ -90,8 +100,6 @@ export const AuthProvider: React.FC<{ children: ReactNode; navigate?: (path: str
       setAccount(fullAccount);
       localStorage.setItem('token', token);
       localStorage.setItem('account', JSON.stringify(fullAccount));
-      console.log('Token sauvegardé dans localStorage:', localStorage.getItem('token'));
-      console.log('Account sauvegardé dans localStorage:', localStorage.getItem('account'));
     } catch (error: any) {
       console.error('Erreur lors de la connexion:', error);
       throw error;
@@ -102,12 +110,9 @@ export const AuthProvider: React.FC<{ children: ReactNode; navigate?: (path: str
     try {
       const response = await axios.post('/auth/register', data);
       const { token, data: accountData } = response.data;
-      console.log('Nouveau token reçu (register):', token);
-      console.log('Données de l\'account reçues (register):', accountData);
-
       const fullAccount: Account = {
         ...accountData,
-        email: data.email, // Forcer l'email depuis les données d'entrée si absent
+        email: data.email,
         role: data.role || 'user',
         isVerified: data.isVerified || false,
         mfaEnabled: data.mfaEnabled || false,
@@ -115,18 +120,10 @@ export const AuthProvider: React.FC<{ children: ReactNode; navigate?: (path: str
         canInvite: data.canInvite || false,
         mustCompleteProfile: false,
       };
-
       setToken(token);
       setAccount(fullAccount);
       localStorage.setItem('token', token);
       localStorage.setItem('account', JSON.stringify(fullAccount));
-      console.log('Token sauvegardé dans localStorage (register):', localStorage.getItem('token'));
-      console.log('Account sauvegardé dans localStorage (register):', localStorage.getItem('account'));
-
-      // Redirection via prop si disponible
-      if (navigate) {
-        navigate('/verify-email');
-      }
     } catch (error: any) {
       console.error('Erreur lors de l\'inscription:', error);
       throw error;
@@ -134,7 +131,6 @@ export const AuthProvider: React.FC<{ children: ReactNode; navigate?: (path: str
   };
 
   const logout = () => {
-    console.log('Déconnexion: suppression du token et de l\'account');
     setToken(null);
     setAccount(null);
     localStorage.removeItem('token');
@@ -146,8 +142,12 @@ export const AuthProvider: React.FC<{ children: ReactNode; navigate?: (path: str
     localStorage.setItem('account', JSON.stringify(updatedAccount));
   };
 
+  const checkAuth = (): boolean => {
+    return isLoggedIn;
+  };
+
   return (
-    <AuthContext.Provider value={{ account, token, isLoggedIn, login, register, logout, updateAccount }}>
+    <AuthContext.Provider value={{ account, token, isLoggedIn, login, register, logout, updateAccount, checkAuth, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

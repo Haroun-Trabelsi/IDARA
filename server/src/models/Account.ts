@@ -14,6 +14,10 @@ interface I extends Document, Account {
   verificationTokenExpires?: Date; // Date d'expiration du token
   mustCompleteProfile: boolean; // Nouveau champ
   receiveUpdates: boolean;
+  organizationSize: number; // Nouveau champ, initialisé à 5
+  feedbackText?: string; // Champ pour le texte du feedback (textarea)
+  featureSuggestions?: string[]; // Tableau pour les suggestions de fonctionnalités
+  rating?: number; // Champ pour la note
 
 }
 
@@ -95,8 +99,12 @@ const instance = new Schema<I>(
     },
     mustCompleteProfile: { type: Boolean, default: false }, // Nouveau champ
 
-    receiveUpdates: { type: Boolean, default: false }
+    receiveUpdates: { type: Boolean, default: false },
 
+    organizationSize: { type: Number, default: 5 }, // Nouveau champ, initialisé à 5
+    feedbackText: { type: String, required: false }, // Champ pour le texte du feedback
+    featureSuggestions: { type: [String], required: false }, // Tableau pour les suggestions
+    rating: { type: Number, required: false }, // Champ pour la note
   },
 
   {
