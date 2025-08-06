@@ -1,18 +1,43 @@
+"use client";
 
-import React, { useState, Fragment, MouseEventHandler, useEffect } from "react"
-import { AppBar, Toolbar, Button, IconButton, Box, Menu, MenuItem, Avatar, Popover, List, ListSubheader, ListItemButton } from "@mui/material"
-import { KeyboardArrowDown, Notifications, Settings, Search, ViewList } from "@mui/icons-material"
-import { useAuth } from 'contexts/AuthContext'
-import { useModalStore } from 'store/useModalStore'
-import OnlineIndicator from 'components/OnlineIndicator'
+import React, { MouseEventHandler, useEffect, useState} from "react";
+import { 
+  AppBar, 
+  Toolbar, 
+  Button, 
+  IconButton, 
+  Box, 
+  Menu, 
+  MenuItem, 
+  Avatar, 
+  Popover, 
+  List, 
+  ListItemButton,
+  Typography
+} from "@mui/material";
+import { 
+  KeyboardArrowDown, 
+  
+  Notifications, 
+  ViewList, 
+  Search,
+  Business,
+  Star,
+  Language as LanguageIcon,
+  Brightness4,
+  Help,
+  Logout
+} from "@mui/icons-material";
+import { useAuth } from 'contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import OnlineIndicator from 'components/OnlineIndicator';
 import { useProject } from '../contexts/ProjectContext';
 import { Link } from "react-router-dom"
  
 export default function Header() {
-  const { isLoggedIn, account, logout } = useAuth()
-  const { setCurrentModal } = useModalStore()
+  const { isLoggedIn, account, logout } = useAuth();
+  const navigate = useNavigate();
   const { setSelectedProject } = useProject();
-
   const [projectsAnchorEl, setProjectsAnchorEl] = useState<null | HTMLElement>(null)
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const [popover, setPopover] = useState(false)
@@ -46,24 +71,18 @@ export default function Header() {
   }
 
   const closePopover = () => {
-    setPopover(false)
-    setAnchorEl(null)
-  }
+    setPopover(false);
+    setAnchorEl(null);
+  };
 
-  const clickLogin = () => {
-    setCurrentModal('LOGIN')
-    closePopover()
-  }
-
-  const clickRegister = () => {
-    setCurrentModal('REGISTER')
-    closePopover()
-  }
+  const handleLogout = () => {
+    logout();
+    closePopover();
+  };
 
   return (
     <AppBar position="static" elevation={0} sx={{ bgcolor: "#2d3748", borderBottom: "1px solid #4a5568" }}>
       <Toolbar sx={{ justifyContent: "space-between", minHeight: "48px !important", px: 2 }}>
-
         {/* Left Navigation */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
           <Button 
@@ -79,7 +98,6 @@ export default function Header() {
           >
             Projects
           </Button>
-          
           <Menu 
             anchorEl={projectsAnchorEl} 
             open={Boolean(projectsAnchorEl)} 
@@ -140,14 +158,10 @@ export default function Header() {
             <Search sx={{ fontSize: "18px" }} />
           </IconButton>
 
-          <IconButton size="small" sx={{ color: "#a0aec0", "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)", color: "#e2e8f0" } }}>
-            <Settings sx={{ fontSize: "18px" }} />
-          </IconButton>
-
           <IconButton onClick={openPopover}>
             <OnlineIndicator online={isLoggedIn}>
-              <Avatar sx={{ width: 28, height: 28, bgcolor: "#4299e1", fontSize: "12px", ml: 1 }} src={account?.username || ''} alt={account?.username || 'Guest'}>
-                {account?.username ? account.username[0].toUpperCase() : 'G'}
+              <Avatar sx={{ width: 28, height: 28, bgcolor: "#4299e1", fontSize: "12px", marginLeft: 1 }} src={account?.name || ''} alt={account?.name || 'Guest'}>
+                {account?.name ? account.name[0].toUpperCase() : 'G'}
               </Avatar>
             </OnlineIndicator>
           </IconButton>
@@ -158,25 +172,127 @@ export default function Header() {
             onClose={closePopover}
             anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
             transformOrigin={{ vertical: "top", horizontal: "right" }}
+            PaperProps={{
+              sx: {
+                bgcolor: "#1a202c",
+                border: "1px solid #2d3748",
+                borderRadius: "8px",
+                minWidth: "280px",
+                boxShadow: "0 10px 25px rgba(0, 0, 0, 0.5)"
+              }
+            }}
           >
-            <List style={{ minWidth: "100px" }}>
-              <ListSubheader style={{ textAlign: "center" }}>
-                Hello, {account?.username || "Guest"}
-              </ListSubheader>
-
+            <Box sx={{ p: 0 }}>
               {isLoggedIn ? (
-                <ListItemButton onClick={logout}>Logout</ListItemButton>
-              ) : (
-                <Fragment>
-                  <ListItemButton onClick={clickLogin}>Login</ListItemButton>
-                  <ListItemButton onClick={clickRegister}>Register</ListItemButton>
-                </Fragment>
-              )}
-            </List>
-          </Popover>
+                <List sx={{ py: 1 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, py: 3, px: 2, borderBottom: "1px solid #2d3748" }}>
+                    <Avatar 
+                      sx={{ width: 48, height: 48, bgcolor: "#4299e1", fontSize: "18px" }} 
+                      alt={account?.name || 'Guest'}
+                    >
+                      {account?.name ? account.name[0].toUpperCase() : 'G'}
+                    </Avatar>
+                    <Typography variant="body1" sx={{ fontWeight: 600, color: "#e2e8f0", fontSize: "16px" }}>
+                      {`${account?.name || "John"} ${account?.surname || "Doe"}`}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "#a0aec0", fontSize: "14px" }}>
+                      {account?.email || "ines.dahmani@esprit.tn"}
+                    </Typography>
+                    <Button
+                      variant="text"
+                      onClick={() => navigate('/account')}
+                      sx={{ 
+                        color: "#4299e1",
+                        textTransform: "none",
+                        fontSize: "14px",
+                        fontWeight: 500,
+                        "&:hover": { bgcolor: "rgba(66, 153, 225, 0.1)" }
+                      }}
+                    >
+                      Account
+                    </Button>
+                  </Box>
 
+                  <ListItemButton 
+                    onClick={() => navigate('/organizations')}
+                    sx={{ color: "#e2e8f0", "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)" }, py: 1.5 }}
+                  >
+                    <Business sx={{ fontSize: "20px", marginRight: 2, color: "#a0aec0" }} />
+                    <Typography variant="body2" sx={{ fontSize: "14px" }}>
+                      Manage organization
+                    </Typography>
+                  </ListItemButton>
+
+                  <ListItemButton 
+                    onClick={() => console.log('Upgrade to Review pro')}
+                    sx={{ color: "#e2e8f0", "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)" }, py: 1.5 }}
+                  >
+                    <Star sx={{ fontSize: "20px", marginRight: 2, color: "#a0aec0" }} />
+                    <Typography variant="body2" sx={{ fontSize: "14px" }}>
+                      Upgrade to Review pro
+                    </Typography>
+                  </ListItemButton>
+
+                  <ListItemButton 
+                    onClick={() => console.log('Language')}
+                    sx={{ color: "#e2e8f0", "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)" }, py: 1.5 }}
+                  >
+                    <LanguageIcon sx={{ fontSize: "20px", marginRight: 2, color: "#a0aec0" }} />
+                    <Typography variant="body2" sx={{ fontSize: "14px" }}>
+                      Language
+                    </Typography>
+                  </ListItemButton>
+
+                  <ListItemButton 
+                    onClick={() => console.log('Switch theme')}
+                    sx={{ color: "#e2e8f0", "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)" }, py: 1.5 }}
+                  >
+                    <Brightness4 sx={{ fontSize: "20px", marginRight: 2, color: "#a0aec0" }} />
+                    <Typography variant="body2" sx={{ fontSize: "14px" }}>
+                      Switch theme
+                    </Typography>
+                  </ListItemButton>
+
+                  <ListItemButton 
+                    onClick={() => console.log('Help and support')}
+                    sx={{ color: "#e2e8f0", "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)" }, py: 1.5 }}
+                  >
+                    <Help sx={{ fontSize: "20px", marginRight: 2, color: "#a0aec0" }} />
+                    <Typography variant="body2" sx={{ fontSize: "14px" }}>
+                      Help and support
+                    </Typography>
+                  </ListItemButton>
+
+                  <ListItemButton 
+                    onClick={handleLogout}
+                    sx={{ color: "#e2e8f0", "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)" }, py: 1.5 }}
+                  >
+                    <Logout sx={{ fontSize: "20px", marginRight: 2, color: "#a0aec0" }} />
+                    <Typography variant="body2" sx={{ fontSize: "14px" }}>
+                      Sign out
+                    </Typography>
+                  </ListItemButton>
+                </List>
+              ) : (
+                <List sx={{ py: 1 }}>
+                  <ListItemButton 
+                    onClick={() => navigate('/login')}
+                    sx={{ color: "#e2e8f0", "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)" } }}
+                  >
+                    Login
+                  </ListItemButton>
+                  <ListItemButton 
+                    onClick={() => navigate('/register')}
+                    sx={{ color: "#e2e8f0", "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)" } }}
+                  >
+                    Register
+                  </ListItemButton>
+                </List>
+              )}
+            </Box>
+          </Popover>
         </Box>
       </Toolbar>
     </AppBar>
-  )
+  );
 }

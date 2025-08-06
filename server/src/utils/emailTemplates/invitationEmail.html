@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background-color: #f5f5f5; margin: 0; }
+    .container { background-color: white; padding: 30px; border-radius: 10px; max-width: 500px; margin: auto; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    .logo { font-size: 28px; font-weight: bold; color: #333; margin-bottom: 30px; letter-spacing: 2px; }
+    .greeting { font-size: 18px; color: #333; margin-bottom: 20px; text-align: left; }
+    .message { font-size: 16px; color: #666; margin-bottom: 30px; text-align: left; }
+    .button-container { margin: 30px 0; }
+    .button { display: inline-block; background-color: #4299e1; color: white; padding: 12px 25px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600; }
+    .button:hover { background-color: #3182ce; }
+    .link-text { font-size: 14px; color: #666; margin-top: 10px; text-align: left; }
+    .link-text a { color: #4299e1; text-decoration: none; word-break: break-all; }
+    .link-text a:hover { text-decoration: underline; }
+    .expiry { font-size: 14px; color: #666; margin: 20px 0; text-align: left; }
+    .contact { font-size: 14px; color: #666; margin: 20px 0; text-align: left; }
+    .contact a { color: #4299e1; text-decoration: none; }
+    .contact a:hover { text-decoration: underline; }
+    .footer { font-size: 12px; color: #999; margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">IDARA</div>
+    <div class="greeting">{{greeting}}</div>
+    <div class="message">{{message}}</div>
+    <div class="button-container">
+      <a href="{{loginUrl}}" target="_blank" class="button">Accept Invitation</a>
+    </div>
+    <div class="link-text">
+      If the button doesn't work, copy this link and open it in a new window:<br>
+      <a href="{{loginUrl}}" target="_blank">{{loginUrl}}</a>
+    </div>
+    <div class="expiry">{{expiry}}</div>
+    <div class="contact">{{contact}}</div>
+    <div class="footer">
+      Provided by IDARA<br>
+      2ÉME, IMMEUBLE GAHBICHE, ÉTAGE، Av. la Perle du Sahel, Sousse
+    </div>
+  </div>
+</body>
+</html>

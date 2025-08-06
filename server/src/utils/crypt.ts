@@ -17,6 +17,11 @@ class Crypt {
 
     return isOk
   }
+
+  async compare(value: string, hash: string): Promise<boolean> {
+    const isOk = await this.instance.compare(value, hash);
+    return isOk;
+  }
 }
 
 export default new Crypt()

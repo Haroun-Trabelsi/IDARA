@@ -1,7 +1,8 @@
 import React from 'react'
 import { MapPin, Phone, Mail } from 'lucide-react'
 import { Link } from '@mui/material'
-
+//moka@visionage-vfx.com
+//Nassredine : int_pipeline@visionage-vfx.com
 const About = () => {
   return (
     <footer className="bg-gray-900 text-gray-300 w-full">

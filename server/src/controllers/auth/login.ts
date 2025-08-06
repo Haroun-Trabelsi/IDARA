@@ -8,25 +8,26 @@ const login: RequestHandler = async (req, res, next) => {
   try {
     const validationError = await joi.validate(
       {
-        username: joi.instance.string().required(),
+        email: joi.instance.string().email().required(),
         password: joi.instance.string().required(),
       },
-      req.body
+      req.body,
+      { stripUnknown: true } // Ignore les champs non définis dans le schéma
     )
 
     if (validationError) {
       return next(validationError)
     }
 
-    const { username, password } = req.body
+    const { email, password } = req.body
 
-    // Get account from DB, and verify existance
-    const account = await Account.findOne({ username })
+    // Get account from DB, and verify existence
+    const account = await Account.findOne({ email })
 
     if (!account) {
       return next({
         statusCode: 400,
-        message: 'Bad credentials',
+        message: 'Mauvais identifiants',
       })
     }
 
@@ -36,7 +37,7 @@ const login: RequestHandler = async (req, res, next) => {
     if (!passOk) {
       return next({
         statusCode: 400,
-        message: 'Bad credentials',
+        message: 'Mauvais identifiants',
       })
     }
 
@@ -47,7 +48,7 @@ const login: RequestHandler = async (req, res, next) => {
     const { password: _, ...accountData } = account.toObject()
 
     res.status(200).json({
-      message: 'Succesfully logged-in',
+      message: 'Connexion réussie',
       data: accountData,
       token,
     })

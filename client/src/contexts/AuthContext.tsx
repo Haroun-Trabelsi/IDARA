@@ -1,113 +1,160 @@
-import React, { createContext, useContext, useState, useEffect, type PropsWithChildren, useMemo } from 'react'
-import axios from 'utils/axios'
-import { type FormData, type Account } from '@types'
+"use client";
 
-interface Context {
-  token: string | null
-  account: Account | null
-  isLoggedIn: boolean
-  register: (payload: FormData) => Promise<any>
-  login: (payload: FormData) => Promise<any>
-  logout: () => void
+import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import axios from 'utils/axios';
+
+interface LoginData {
+  email: string;
+  password: string;
 }
 
-const initContext: Context = {
-  token: null,
-  account: null,
-  isLoggedIn: false,
-  register: async () => {},
-  login: async () => {},
-  logout: () => {},
+interface Account {
+  _id: string;
+  name: string;
+  surname: string;
+  email: string;
+  password?: string;
+  role: 'user' | 'admin';
+  isVerified: boolean;
+  verificationCode?: string;
+  verificationCodeExpires?: Date;
+  mfaSecret?: string;
+  mfaEnabled: boolean;
+  organizationName: string;
+  invitedBy?: string;
+  canInvite: boolean;
+  mustCompleteProfile: boolean;
+  organizationSize: number;
+  feedbackText?: string;
+  featureSuggestions?: string[];
+  rating?: number;
 }
 
-// init context
-const AuthContext = createContext(initContext)
-const { Provider } = AuthContext
+export interface FormData {
+  name?: string;
+  surname?: string;
+  organizationName: string;
+  email: string;
+  password: string;
+}
 
-// export the consumer
-export const useAuth = () => useContext(AuthContext)
+interface AuthContextType {
+  account: Account | null;
+  token: string | null;
+  isLoggedIn: boolean;
+  login: (data: LoginData) => Promise<void>;
+  register: (data: FormData & { role: 'user' | 'admin'; canInvite: boolean; isVerified: boolean; mfaEnabled: boolean }) => Promise<void>;
+  logout: () => void;
+  updateAccount: (updatedAccount: Account) => void;
+  checkAuth: () => boolean;
+  isLoading: boolean; // Nouvel état de chargement
+}
 
-// export the provider
-export const AuthProvider = ({ children }: PropsWithChildren) => {
-  const [token, setToken] = useState(localStorage.getItem('token') || initContext.token)
-  const [account, setAccount] = useState(initContext.account)
-  const [isLoggedIn, setIsLoggedIn] = useState(initContext.isLoggedIn)
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-  const register = (formData: FormData) => {
-    return new Promise((resolve, reject) => {
-      axios
-        .post('/auth/register', formData)
-        .then(({ data: { data: accountData, token: accessToken } }) => {
-          setAccount(accountData)
-          setToken(accessToken)
-          setIsLoggedIn(true)
-          resolve(true)
-        })
-        .catch((error) => {
-          reject(error?.response?.data?.message || error.message)
-        })
-    })
-  }
+// Initialisation synchrone à partir de localStorage
+const initialToken = localStorage.getItem('token');
+const initialAccount = initialToken ? (JSON.parse(localStorage.getItem('account') || '{}') as Account) : null;
 
-  const login = (formData: FormData) => {
-    return new Promise((resolve, reject) => {
-      axios
-        .post('/auth/login', formData)
-        .then(({ data: { data: accountData, token: accessToken } }) => {
-          setAccount(accountData)
-          setToken(accessToken)
-          setIsLoggedIn(true)
-          resolve(true)
-        })
-        .catch((error) => {
-          reject(error?.response?.data?.message || error.message)
-        })
-    })
-  }
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [account, setAccount] = useState<Account | null>(initialAccount);
+  const [token, setToken] = useState<string | null>(initialToken);
+  const [isLoading, setIsLoading] = useState(true); // État de chargement
+
+  useEffect(() => {
+    // Vérification et mise à jour de l'état une seule fois
+    const savedToken = localStorage.getItem('token');
+    const savedAccount = localStorage.getItem('account');
+    if (savedToken && savedAccount) {
+      try {
+        const parsedAccount = JSON.parse(savedAccount) as Account;
+        setToken(savedToken);
+        setAccount(parsedAccount);
+      } catch (err) {
+        console.error('Erreur lors de la restauration de l\'account:', err);
+        localStorage.removeItem('token');
+        localStorage.removeItem('account');
+        setToken(null);
+        setAccount(null);
+      }
+    }
+    setIsLoading(false); // Fin du chargement après restauration
+  }, []); // Exécuté une seule fois au montage
+
+  const isLoggedIn = !!account && !!token;
+
+  const login = async (data: LoginData) => {
+    try {
+      const response = await axios.post('/auth/login', { email: data.email, password: data.password });
+      const { token, data: accountData } = response.data;
+      const fullAccount: Account = {
+        ...accountData,
+        role: accountData.role || 'user',
+        isVerified: accountData.isVerified || false,
+        mfaEnabled: accountData.mfaEnabled || false,
+        organizationName: accountData.organizationName || '',
+        canInvite: accountData.canInvite || false,
+        mustCompleteProfile: accountData.mustCompleteProfile || false,
+      };
+      setToken(token);
+      setAccount(fullAccount);
+      localStorage.setItem('token', token);
+      localStorage.setItem('account', JSON.stringify(fullAccount));
+    } catch (error: any) {
+      console.error('Erreur lors de la connexion:', error);
+      throw error;
+    }
+  };
+
+  const register = async (data: FormData & { role: 'user' | 'admin'; canInvite: boolean; isVerified: boolean; mfaEnabled: boolean }) => {
+    try {
+      const response = await axios.post('/auth/register', data);
+      const { token, data: accountData } = response.data;
+      const fullAccount: Account = {
+        ...accountData,
+        email: data.email,
+        role: data.role || 'user',
+        isVerified: data.isVerified || false,
+        mfaEnabled: data.mfaEnabled || false,
+        organizationName: data.organizationName || '',
+        canInvite: data.canInvite || false,
+        mustCompleteProfile: false,
+      };
+      setToken(token);
+      setAccount(fullAccount);
+      localStorage.setItem('token', token);
+      localStorage.setItem('account', JSON.stringify(fullAccount));
+    } catch (error: any) {
+      console.error('Erreur lors de l\'inscription:', error);
+      throw error;
+    }
+  };
 
   const logout = () => {
-    setIsLoggedIn(false)
-    setAccount(null)
-    setToken(null)
-  }
+    setToken(null);
+    setAccount(null);
+    localStorage.removeItem('token');
+    localStorage.removeItem('account');
+  };
 
-  const loginWithToken = async () => {
-    try {
-      const {
-        data: { data: accountData, token: accessToken },
-      } = await axios.get('/auth/login', {
-        headers: {
-          authorization: `Bearer ${token}`,
-        },
-      })
+  const updateAccount = (updatedAccount: Account) => {
+    setAccount(updatedAccount);
+    localStorage.setItem('account', JSON.stringify(updatedAccount));
+  };
 
-      setAccount(accountData)
-      setToken(accessToken)
-      setIsLoggedIn(true)
-    } catch (error: any) {
-      console.error(error)
-      if (error?.response?.statusCode === 401) setToken(null)
-    }
-  }
+  const checkAuth = (): boolean => {
+    return isLoggedIn;
+  };
 
-  // This side effect keeps local storage updated with recent token value,
-  // making sure it can be re-used upon refresh or re-open browser
-  useEffect(() => {
-    if (token) {
-      localStorage.setItem('token', token)
-    } else {
-      localStorage.removeItem('token')
-    }
-  }, [token])
+  return (
+    <AuthContext.Provider value={{ account, token, isLoggedIn, login, register, logout, updateAccount, checkAuth, isLoading }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
 
-  // This side effect runs only if we have a token, but no account or logged-in boolean.
-  // This "if" statement is "true" only when refreshed, or re-opened the browser,
-  // if true, it will then ask the backend for the account information (and will get them if the token hasn't expired)
-  useEffect(() => {
-    if (!isLoggedIn && !account && token) loginWithToken()
-  }, [isLoggedIn, account, token]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const value = useMemo(() => ({ token, account, isLoggedIn, register, login, logout }), [token, account, isLoggedIn])
-
-  return <Provider value={value}>{children}</Provider>
-}
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
+  return context;
+};
