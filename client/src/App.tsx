@@ -20,6 +20,9 @@ import Organizations from 'components/ManageOrganization/OrganizationPage';
 import { AuthProvider } from 'contexts/AuthContext';
 import AuthGuard from 'utils/AuthGuard';
 import RoleGuard from 'utils/RoleGuard';
+import ChatbotWidget from 'components/Chatbot/ChatbotWidget'
+import DocumentationPage from 'pages/DocumentationPage'
+import AdminMessages from 'components/admin/AdminMessages'
 
 const DefaultLayout = ({ children }: { children: React.ReactNode }) => (
   <div className="min-h-screen flex flex-col bg-gray-900 text-gray-300 w-full">
@@ -53,6 +56,13 @@ const App = () => {
               <ProjectManagementInterface />
               </DefaultLayout>
             } />
+                      <Route path="/CompleteProfil" element={<CompletProfil />} />
+          <Route path="/Account" element={<Account />} />
+          <Route path="/organizations" element={<Organizations />} />
+          <Route path="/support" element={<DocumentationPage />} />
+<Route path="/admin/messages" element={<AdminMessages />} />
+
+          <Route path="/error" element={<Error />} />
           <Route
             path="/login"
             element={
@@ -172,10 +182,12 @@ const App = () => {
             }
           />
         </Routes>
-        <AuthModal />
         </AuthProvider>
-    </BrowserRouter>
+        </BrowserRouter>
     </ProjectProvider>
+        <About />
+         <ChatbotWidget />
+    
   )
 };
 

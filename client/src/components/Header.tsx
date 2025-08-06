@@ -1,6 +1,9 @@
 "use client";
 
-import React, { MouseEventHandler, useEffect, useState} from "react";
+import React, { MouseEventHandler, useEffect, useState } from "react";
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from 'contexts/AuthContext';
+import ContactForm from 'components/contact/ContactForm';
 import { 
   AppBar, 
   Toolbar, 
@@ -13,7 +16,8 @@ import {
   Popover, 
   List, 
   ListItemButton,
-  Typography
+  Typography,
+  Modal
 } from "@mui/material";
 import { 
   KeyboardArrowDown, 
@@ -28,8 +32,6 @@ import {
   Help,
   Logout
 } from "@mui/icons-material";
-import { useAuth } from 'contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import OnlineIndicator from 'components/OnlineIndicator';
 import { useProject } from '../contexts/ProjectContext';
 import { Link } from "react-router-dom"
@@ -38,12 +40,6 @@ export default function Header() {
   const { isLoggedIn, account, logout } = useAuth();
   const navigate = useNavigate();
   const { setSelectedProject } = useProject();
-  const [projectsAnchorEl, setProjectsAnchorEl] = useState<null | HTMLElement>(null)
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
-  const [popover, setPopover] = useState(false)
-  const [projects, setProjects] = useState<{ id: string; name: string }[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -65,10 +61,18 @@ export default function Header() {
     fetchProjects()
   }, [])
 
-  const openPopover: MouseEventHandler<HTMLButtonElement> = (e) => {
-    setPopover(true)
-    setAnchorEl(e.currentTarget)
-  }
+  const [projectsAnchorEl, setProjectsAnchorEl] = useState<null | HTMLElement>(null);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [popover, setPopover] = useState(false);
+  const [projects,setProjects] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [openContact, setOpenContact] = useState(false);
+
+  const openPopover = (e: React.MouseEvent<HTMLButtonElement>) => {
+    setPopover(true);
+    setAnchorEl(e.currentTarget);
+  };
 
   const closePopover = () => {
     setPopover(false);
@@ -212,6 +216,23 @@ export default function Header() {
                       Account
                     </Button>
                   </Box>
+<Modal
+  open={openContact}
+  onClose={() => setOpenContact(false)}
+  aria-labelledby="contact-modal"
+  aria-describedby="contact-form"
+  sx={{
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backdropFilter: 'blur(2px)'
+  }}
+>
+  <ContactForm 
+    isOpen={openContact} 
+    onClose={() => setOpenContact(false)} 
+  />
+</Modal>
 
                   <ListItemButton 
                     onClick={() => navigate('/organizations')}
@@ -254,7 +275,7 @@ export default function Header() {
                   </ListItemButton>
 
                   <ListItemButton 
-                    onClick={() => console.log('Help and support')}
+                    onClick={() => setOpenContact(true)}
                     sx={{ color: "#e2e8f0", "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)" }, py: 1.5 }}
                   >
                     <Help sx={{ fontSize: "20px", marginRight: 2, color: "#a0aec0" }} />

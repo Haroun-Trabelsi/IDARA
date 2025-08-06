@@ -5,6 +5,7 @@ import { ORIGIN } from '../constants/index'
 // initialize app
 const app = express()
 
+
 // middlewares
 app.use(cors({
     origin: 'http://localhost:3000',
