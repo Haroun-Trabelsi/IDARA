@@ -11,8 +11,8 @@ router.get('/results_by_task', async (req, res, next) => {
       return res.status(400).json({ success: false, message: "Missing 'project' query parameter" })
     }
 
-    // Query only documents for the requested project
-    const allResults = await Result.find({ project })
+    // ✅ Query only documents for the requested project AND version = 2
+    const allResults = await Result.find({ project, version: 3 })
 
     const structured: Record<string, Record<string, Record<string, any>>> = {}
 

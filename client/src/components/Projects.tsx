@@ -1,8 +1,7 @@
 "use client"
 
 import { Box, TextField, Typography, ThemeProvider, createTheme, CssBaseline } from "@mui/material"
-import { useEffect, useMemo, useState } from "react"
-import Sidebar from "./Project-components/Sidebar"
+import { useEffect, useState } from "react"
 import SecondaryNavigation from "./Project-components/SecondaryNavigation"
 import Toolbar from "./Project-components/Toolbar"
 import TaskTable, {  Task } from "./Project-components/TaskTable"
@@ -45,48 +44,84 @@ const darkTheme = createTheme({
     },
   },
 })
+interface VideoComponent {
+  name: string;
+  fileType: string;
+  date: Date;
+  value: string;
+}
 
 
 
 export default function ProjectManagementInterface() {
   const [ProjectData, setProjectData] = useState<Task[]>();
+  
   const [filterText, setFilterText] = useState("");
   const { selectedProject } = useProject();
 
-  useEffect(() => {
-    if (!selectedProject) return; // only fetch if projectName exists
+useEffect(() => {
+  if (!selectedProject) return;
 
-    const fetchProject = async () => {
-      try {
-      const response = await fetch(`http://localhost:8080/api/projects/${encodeURIComponent(selectedProject.id)}`)
-      const data = await response.json(); // This should already be in Task[] shape
-      console.log("Fetched project tasks:", data);
-      setProjectData(data); // Set flat list directly
-      } catch (error) {
-        console.error("Failed to fetch project:", error);
-      }
-    };
+  const fetchProject = async () => {
+    try {
+      const response = await fetch(
+        `http://localhost:8080/api/projects/${encodeURIComponent(selectedProject.id)}`
+      );
+      const tasks: Task[] = await response.json();
 
-    fetchProject();
-  }, [selectedProject]);
-  const sidebarItems = useMemo(() => {
-    if (!ProjectData) return []
-    const uniqueSequences = Array.from(new Set(ProjectData.map(task => task.sequence)))
-    return uniqueSequences.map(seq => ({
-      id: seq,
-      progress: 100,
-      color: "#10b981", // Green for "done"
-    }))
-  }, [ProjectData])
+      const tasksWithVideos = await Promise.all(
+        tasks.map(async (task) => {
+          try {
+            const res = await fetch(`http://localhost:8080/api/task/${task.id}/components`);
+            const videoList = await res.json();
+
+          const formattedVideos: VideoComponent[] = videoList
+          .map((v: any): VideoComponent => ({
+            name: v.name,
+            fileType: v.fileType,
+            date: new Date(v.date),
+            value: v.url.value,
+          }))
+          .reverse();
+
+        const videosWithFormattedDates = formattedVideos.map((v: VideoComponent) => ({
+          ...v,
+          date: v.date.toLocaleDateString(), // format after sorting
+        }));
+
+            return {
+              ...task,
+              videos: videosWithFormattedDates,
+            };
+          } catch (err) {
+            console.error(`Failed to load videos for task ${task.id}`, err);
+            return {
+              ...task,
+              videos: [],
+            };
+          }
+        })
+      );
+
+      console.log("Fetched project tasks with reversed video lists:", tasksWithVideos);
+      setProjectData(tasksWithVideos);
+    } catch (error) {
+      console.error("Failed to fetch project:", error);
+    }
+  };
+
+  fetchProject();
+}, [selectedProject]);
+
+
+
   return (
     <ThemeProvider theme={darkTheme}>
       <CssBaseline />
-      <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+      <Box sx={{ display: "flex", flexDirection: "column", height: "94vh" }}>
         {/* Header Component */}
 
         <Box sx={{ display: "flex", flexGrow: 1, overflow: "hidden" }}>
-          {/* Sidebar Component */}
-          <Sidebar items={sidebarItems} />
 
           {/* Main Content */}
           <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>

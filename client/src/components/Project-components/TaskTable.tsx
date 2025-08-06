@@ -122,6 +122,8 @@ async function loadDifficultiesForTasks(tasksToLoad: Task[]) {
 }
 
 const [hasLoadedDifficulties, setHasLoadedDifficulties] = useState(false);
+const [isVideoLoading, setIsVideoLoading] = useState(false);
+
 
 useEffect(() => {
   if (!hasLoadedDifficulties && tasks.length > 0) {
@@ -144,28 +146,30 @@ const toggleTaskSelection = (taskId: string) => {
   });
 };
 const handleOpenVideoSelector = async (taskId: string) => {
-  const task = tasks.find(t => t.id === taskId);
-  if (!task) return;
+  setIsVideoLoading(true); // Start loading
+  setVideoModalOpen(true); // Open modal early (optional, or wait below)
 
   try {
     const res = await fetch(`http://localhost:8080/api/task/${taskId}/components`);
-    const videoList = await res.json();
+    const data = await res.json();
 
-    // Attach videos with name and date
-    const options = videoList.map((v: any) => ({
-      name: v.name,
-      fileType: v.fileType,
-      date: new Date(v.date).toLocaleDateString(),
-      value: v.url.value
-    }));
+    const formattedVideos: any[] = data
+      .map((v: any) => ({
+        name: v.name,
+        fileType: v.fileType,
+        date: new Date(v.date),
+        value: v.url.value,
+      }))
+      .reverse();
 
-    setVideoOptions(options);
-    setActiveTaskId(taskId);
-    setVideoModalOpen(true);
+    setVideoOptions(formattedVideos);
   } catch (err) {
     console.error("Failed to load videos", err);
+  } finally {
+    setIsVideoLoading(false); // Done loading
   }
 };
+
 
 
 const handleVideoSelect = (url: string) => {
@@ -220,6 +224,7 @@ const handleVideoSelect = (url: string) => {
 const [videoUrl, setVideoUrl] = React.useState<string | null>(null);
 const [open, setOpen] = React.useState(false);
 const [loadingTaskId, setLoadingTaskId] = useState<string | null>(null);
+const [queuedTaskIds, setQueuedTaskIds] = useState<Set<string>>(new Set());
 const [taskJobIds, setTaskJobIds] = useState<Record<string, string>>({});
 
 const cancelJob = async (jobId: string) => {
@@ -250,24 +255,25 @@ const handleCloseVideo = () => {
 };
 
 async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
-  for (const task of selectedTaskObjects) {
-    const videoUrl = task.videos?.[0]?.value;
+  // Set queued tasks (all at first)
+  const queued = new Set(selectedTaskObjects.map(task => task.id));
+  setQueuedTaskIds(queued);
 
+  for (const task of selectedTaskObjects) {
+    // Remove current task from queue and mark as loading
+    queued.delete(task.id);
+    setQueuedTaskIds(new Set(queued));
+    setLoadingTaskId(task.id);
+
+    const videoUrl = task.videos?.[0]?.value;
     if (!videoUrl) {
-      alert(`No video assigned to task ${task.id}. Please select a video before sending.`);
+      alert(`No video assigned to task ${task.id}.`);
       continue;
     }
 
     try {
-      setLoadingTaskId(task.id); // UI indicator
-
-      // Delay first request by 3 seconds
       await new Promise(resolve => setTimeout(resolve, 3000));
-
-      // Step 1: Download video
       const videoResponse = await fetch(videoUrl.value);
-      console.log(videoUrl.value);
-
       if (!videoResponse.ok) throw new Error(`Failed to fetch video for task ${task.id}`);
       const blob = await videoResponse.blob();
 
@@ -275,21 +281,15 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
       formData.append("file", blob, `${task.id}.mp4`);
       formData.append("original_filename", `Sequence - ${task.sequence} Task - ${task.description} Project Name - ${project}.mp4`);
 
-      // Step 2: Upload to server
       const uploadResponse = await fetch("http://localhost:8089/upload_video", {
         method: "POST",
         body: formData,
       });
 
-      if (!uploadResponse.ok) {
-        throw new Error(`Upload failed with status ${uploadResponse.status}`);
-      }
-
+      if (!uploadResponse.ok) throw new Error(`Upload failed with status ${uploadResponse.status}`);
       const { job_id } = await uploadResponse.json();
-      console.log(`Video uploaded for task ${task.id}, job ID: ${job_id}`);
       setTaskJobIds(prev => ({ ...prev, [task.id]: job_id }));
 
-      // Step 3: Poll for result
       const pollUrl = `http://localhost:8089/result/${job_id}`;
       const maxAttempts = 30;
       let resultReceived = false;
@@ -299,7 +299,6 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
         const data = await res.json();
 
         if (data.status === "done" && data.result) {
-          console.log(`Task ${task.id} completed:`, data.result);
           resultReceived = true;
           setTasks(prev =>
             (prev || []).map(t =>
@@ -307,20 +306,14 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
             )
           );
           break;
-        } else if (data.status === "processing") {
-          console.log(`Task ${task.id} is still processing (attempt ${attempt + 1})`);
-        } else {
-          console.error(`Unexpected status or response for task ${task.id}:`, data);
-          break;
         }
 
-        await new Promise(resolve => setTimeout(resolve, 1000 * Math.min(attempt + 1, 5))); // backoff
+        await new Promise(resolve => setTimeout(resolve, 1000 * Math.min(attempt + 1, 5)));
       }
 
       if (!resultReceived) {
-        alert(`Task ${task.id} timed out. Please try again later.`);
+        alert(`Task ${task.id} timed out.`);
       }
-
     } catch (err) {
       console.error(`Error processing task ${task.id}:`, err);
       alert(`Failed to process video for task ${task.id}.`);
@@ -328,7 +321,11 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
       setLoadingTaskId(null);
     }
   }
+
+  // Clear queue after all tasks
+  setQueuedTaskIds(new Set());
 }
+
 
 
 
@@ -513,23 +510,25 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
 </TableCell>
 
 
-              <TableCell sx={{ p: 1, borderBottom: "1px solid #2d3748" }}>
-                <Box sx={{ display: "flex", alignItems: "center", pl: task.level * 2.5 }}>
-                  
-                    {task.videos && task.videos.length > 0 ? (
-    <IconButton
-      size="small"
-      onClick={() => handleOpenVideo(task.videos[0].value)}
-      sx={{ color: "#63b3ed", p: 0.5 }}
-      aria-label="play video"
-    >
-      <PlayCircleOutline fontSize="small" />
-    </IconButton>
-  ) : (
-    <Typography variant="body2" sx={{ color: "#a0aec0", fontSize: "13px" }}>
-      No video
-    </Typography>
-  )}
+         <TableCell sx={{ p: 1, borderBottom: "1px solid #2d3748" }}>
+  <Box sx={{ display: "flex", alignItems: "center", pl: task.level * 2.5 }}>
+    {isVideoLoading && activeTaskId === task.id ? (
+      // Show spinner if videos for this task are loading
+      <CircularProgress size={20} sx={{ mr: 1 }} />
+    ) : task.videos && task.videos.length > 0 ? (
+      <IconButton
+        size="small"
+        onClick={() => handleOpenVideo(task.videos[0].value)}
+        sx={{ color: "#63b3ed", p: 0.5 }}
+        aria-label="play video"
+      >
+        <PlayCircleOutline fontSize="small" />
+      </IconButton>
+    ) : (
+      <Typography variant="body2" sx={{ color: "#a0aec0", fontSize: "13px" }}>
+        No video
+      </Typography>
+    )}
     <Box
       onClick={() => handleOpenVideoSelector(task.id)}
       sx={{ ml: 1, cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
@@ -538,10 +537,8 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
         {task.sequence || ""} / {task.description || ""} / {task.icon || ''}
       </Typography>
     </Box>
-
-
-                </Box>
-              </TableCell>
+  </Box>
+</TableCell>
 
               <TableCell sx={{ p: 1, borderBottom: "1px solid #2d3748" }}>
                 <Typography variant="body2" sx={{ color: "#a0aec0", fontSize: "13px" }}>
@@ -612,6 +609,8 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
         Cancel
       </Button>
     </Box>
+  ) : queuedTaskIds.has(task.id) ? (
+    <Typography variant="body2" color="textSecondary">Queued ..</Typography>
   ) : task.Difficulty ? (
     <Box>
       <Typography variant="body2" fontWeight="bold">
@@ -627,6 +626,7 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
     <Typography variant="body2" color="textSecondary">Not processed</Typography>
   )}
 </TableCell>
+
 
 
             </TableRow>
