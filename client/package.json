@@ -41,11 +41,14 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@ftrack/api": "^1.11.2",
+    "@google/generative-ai": "^0.24.1",
     "@mui/icons-material": "^7.1.1",
     "@mui/material": "^7.1.1",
     "@tailwindcss/cli": "^4.1.8",
+    "antd": "^5.26.6",
     "axios": "^1.8.4",
     "dotenv": "^16.5.0",
+    "framer-motion": "^12.23.9",
     "ftrack": "^1.0.3",
     "lucide-react": "^0.511.0",
     "mui": "^0.0.1",
@@ -57,15 +60,15 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
-    "@types/react": "^19.0.10",
+    "@types/react": "^19.1.8",
     "@types/react-dom": "^19.0.4",
     "autoprefixer": "^10.4.21",
     "concurrently": "^9.1.2",
     "css-loader": "^7.1.2",
-    "postcss": "^8.5.4",
+    "postcss": "^8.5.6",
     "postcss-loader": "^8.1.1",
     "serve": "^14.2.4",
-    "tailwindcss": "^4.1.8",
+    "tailwindcss": "^4.1.11",
     "wait-on": "^8.0.3"
   }
 }

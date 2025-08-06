@@ -1,0 +1,10 @@
+{
+  "devDependencies": {
+    "@types/antd": "^0.12.32",
+    "@types/express": "^5.0.3"
+  },
+  "dependencies": {
+    "@types/react": "^19.1.8",
+    "antd": "^5.26.6"
+  }
+}

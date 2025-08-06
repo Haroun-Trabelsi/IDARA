@@ -7,6 +7,11 @@ import { PORT } from './constants/index'
 import authRoutes from './routes/auth'
 import projectsRouter from './routes/projects'
 import collaborator from './routes/collaborator'
+import contactRoutes from './routes/contact';
+
+import adminRoutes from './routes/admin';
+
+
 
 const bootstrap = async () => {
   await mongo.connect()
@@ -19,9 +24,13 @@ const bootstrap = async () => {
     res.status(204).end()
   })
 
+
   app.use('/auth', authRoutes)
   app.use('/api', projectsRouter);
   app.use('/col', collaborator);
+  app.use('/contact', contactRoutes);
+  app.use('/admin', adminRoutes);
+
 
   app.listen(PORT, () => {
     console.log(`✅ Server is listening on port: ${PORT}`)

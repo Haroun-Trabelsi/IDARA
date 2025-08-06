@@ -1,6 +1,9 @@
 "use client";
 
-import React, { useState} from "react";
+import React, { useState } from "react";
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from 'contexts/AuthContext';
+import ContactForm from 'components/contact/ContactForm';
 import { 
   AppBar, 
   Toolbar, 
@@ -13,7 +16,8 @@ import {
   Popover, 
   List, 
   ListItemButton,
-  Typography
+  Typography,
+  Modal
 } from "@mui/material";
 import { 
   KeyboardArrowDown, 
@@ -28,8 +32,6 @@ import {
   Help,
   Logout
 } from "@mui/icons-material";
-import { useAuth } from 'contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import OnlineIndicator from 'components/OnlineIndicator';
 
 export default function Header() {
@@ -43,8 +45,7 @@ export default function Header() {
   const [projects] = useState<string[]>([]);
   const [loading] = useState(true);
   const [error] = useState<string | null>(null);
-
- 
+  const [openContact, setOpenContact] = useState(false);
 
   const openPopover = (e: React.MouseEvent<HTMLButtonElement>) => {
     setPopover(true);
@@ -192,6 +193,23 @@ export default function Header() {
                       Account
                     </Button>
                   </Box>
+<Modal
+  open={openContact}
+  onClose={() => setOpenContact(false)}
+  aria-labelledby="contact-modal"
+  aria-describedby="contact-form"
+  sx={{
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backdropFilter: 'blur(2px)'
+  }}
+>
+  <ContactForm 
+    isOpen={openContact} 
+    onClose={() => setOpenContact(false)} 
+  />
+</Modal>
 
                   <ListItemButton 
                     onClick={() => navigate('/organizations')}
@@ -234,7 +252,7 @@ export default function Header() {
                   </ListItemButton>
 
                   <ListItemButton 
-                    onClick={() => console.log('Help and support')}
+                    onClick={() => setOpenContact(true)}
                     sx={{ color: "#e2e8f0", "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)" }, py: 1.5 }}
                   >
                     <Help sx={{ fontSize: "20px", marginRight: 2, color: "#a0aec0" }} />

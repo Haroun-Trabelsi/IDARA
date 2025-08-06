@@ -13,6 +13,11 @@ import CompletProfil from 'components/HeaderComponents/CompleteProfil'; // Ajout
 import Account from 'components/HeaderComponents/Account'; // Ajouter cette importation
 import Organizations from 'components/HeaderComponents/OrganizationPage'; // Ajouter cette importation
 import VerifyInbox from 'components/HeaderComponents/VerifyEmailPage'; // Ajouter cette importation
+import ChatbotWidget from 'components/Chatbot/ChatbotWidget'
+import DocumentationPage from 'pages/DocumentationPage'
+import AdminMessages from 'components/admin/AdminMessages'
+
+
 
 const App = () => {
   return (
@@ -30,12 +35,18 @@ const App = () => {
           <Route path="/CompleteProfil" element={<CompletProfil />} />
           <Route path="/Account" element={<Account />} />
           <Route path="/organizations" element={<Organizations />} />
+          <Route path="/support" element={<DocumentationPage />} />
+
+<Route path="/admin/messages" element={<AdminMessages />} />
 
           <Route path="/error" element={<Error />} />
 
+
+                
         </Routes>
         <AuthModal />
         <About />
+         <ChatbotWidget />
       </div>
     </BrowserRouter>
   )
