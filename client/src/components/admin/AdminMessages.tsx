@@ -4,7 +4,6 @@ import { Box, Typography, ThemeProvider, createTheme, CssBaseline, Table, TableB
 import axios from 'axios';
 import Toolbar from 'components/Project-components/Toolbar';
 import SecondaryNavigation from 'components/Project-components/SecondaryNavigation';
-import Sidebar from 'components/Project-components/Sidebar';
 
 // thème dark identique
 const darkTheme = createTheme({ palette: { mode: 'dark', primary: { main: '#4299e1' }, secondary: { main: '#f59e0b' },
@@ -30,7 +29,6 @@ export default function AdminMessages() {
       <CssBaseline />
       <Box sx={{ display: 'flex', height: '100vh', flexDirection: 'column' }}>
         <Box sx={{ display: 'flex', flexGrow: 1, overflow: 'hidden' }}>
-          <Sidebar />
           <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <SecondaryNavigation />
             <Toolbar />

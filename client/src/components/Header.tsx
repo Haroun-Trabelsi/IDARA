@@ -1,6 +1,6 @@
 "use client";
 
-import React, { MouseEventHandler, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from 'contexts/AuthContext';
 import ContactForm from 'components/contact/ContactForm';
@@ -64,7 +64,7 @@ export default function Header() {
   const [projectsAnchorEl, setProjectsAnchorEl] = useState<null | HTMLElement>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [popover, setPopover] = useState(false);
-  const [projects,setProjects] = useState<string[]>([]);
+  const [projects, setProjects] = useState<{ id: string; name: string }[]>([])
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openContact, setOpenContact] = useState(false);

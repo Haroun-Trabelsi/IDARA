@@ -41,6 +41,7 @@ const AdminLayout = ({ children }: { children: React.ReactNode }) => (
 
 const App = () => {
   return (
+    <>
     <ProjectProvider>
     <BrowserRouter>
       <AuthProvider>
@@ -56,13 +57,20 @@ const App = () => {
               <ProjectManagementInterface />
               </DefaultLayout>
             } />
-                      <Route path="/CompleteProfil" element={<CompletProfil />} />
-          <Route path="/Account" element={<Account />} />
-          <Route path="/organizations" element={<Organizations />} />
-          <Route path="/support" element={<DocumentationPage />} />
-<Route path="/admin/messages" element={<AdminMessages />} />
+          <Route path="/support" element={
+            <DefaultLayout>
+            <DocumentationPage/>
+            </DefaultLayout>
+            } />
+          <Route path="/admin/messages" element={
+            <DefaultLayout>
+            <AdminMessages />
+            </DefaultLayout>
+            } />
 
-          <Route path="/error" element={<Error />} />
+          <Route path="/error" element={
+            <Error />} 
+            />
           <Route
             path="/login"
             element={
@@ -187,7 +195,7 @@ const App = () => {
     </ProjectProvider>
         <About />
          <ChatbotWidget />
-    
+    </>
   )
 };
 
