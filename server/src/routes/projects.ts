@@ -24,41 +24,39 @@ router.get('/projects', async (req, res) => {
 router.get('/projects/:projectName', async (req, res) => {
   try {
     const { projectName } = req.params;
-    console.log(`📦 Fetching asset versions for project ID: ${projectName}`);
+    console.log(`📋 Fetching tasks for project ID: ${projectName}`);
 
     const sessionInstance = await session;
 
-    const query = await sessionInstance.query(`
+    // Query all tasks for the given project
+    const taskQuery = await sessionInstance.query(`
       select
-        asset.name,
+        id,
+        name,
+        type.name,
         status.name,
-        date,
-        task.id,
-        task.name,
-        task.type.name,
-        task.status.name,
-        task.parent.name,
-        task.parent.parent.name,
-        task.end_date,
-        task.bid,
-        task.time_logged,
-        task.assignments.resource.id
-      from AssetVersion
-      where task.project.id is ${projectName}
+        end_date,
+        bid,
+        time_logged,
+        parent.name,
+        parent.parent.name,
+        assignments.resource.id
+      from Task
+      where project.id is ${projectName}
     `);
 
-    const raw = query.data;
+    const rawTasks = taskQuery.data;
 
-    // Extract unique user IDs
+    // Extract user IDs
     const userIds = [
       ...new Set(
-        raw.flatMap(v =>
-          v.task?.assignments?.map(a => a.resource?.id).filter(Boolean) || []
+        rawTasks.flatMap(t =>
+          t.assignments?.map(a => a.resource?.id).filter(Boolean) || []
         )
       )
     ];
 
-    // Resolve user names
+    // Get user names
     let usersById: Record<string, string> = {};
     if (userIds.length > 0) {
       const userQuery = await sessionInstance.query(`
@@ -72,45 +70,35 @@ router.get('/projects/:projectName', async (req, res) => {
       );
     }
 
-    const seenTaskIds = new Set();
-    const tasks = raw
-      .filter(row => {
-        const taskId = row.task?.id;
-        if (!taskId || seenTaskIds.has(taskId)) return false;
-        seenTaskIds.add(taskId);
-        return true;
-      })
-      .map((row, index) => {
-        const task = row.task;
+    // Format task data
+    const tasks = rawTasks.map((task, index) => {
+      const assignees = task.assignments
+        ?.map(a => usersById[a.resource?.id])
+        .filter(Boolean)
+        .join(', ') || 'Unassigned';
 
-        const assignees = task?.assignments
-          ?.map(a => usersById[a.resource?.id])
-          .filter(Boolean)
-          .join(', ') || 'Unassigned';
-
-        return {
-          id: task?.id || '',
-          number: index + 1,
-          type: `Task (${task?.type?.name || 'Unknown'})`,
-          status: task?.status?.name?.toLowerCase() || 'pending',
-          assignee: assignees,
-          sequence: task?.parent?.parent?.name || 'Unassigned',
-          description: task?.parent?.name || 'Unknown',
-          dueDate: task?.end_date ? new Date(task.end_date).toISOString().split('T')[0] : null,
-          bidHours: task?.bid ? task.bid / 3600 : 0,
-          actualHours: task?.time_logged ? task.time_logged / 3600 : 0,
-          level: 0,
-          icon: task?.type?.name?.toLowerCase() === 'camtrack' ? 'tracking' : undefined,
-          assetName: row.asset?.name || ''
-        };
-      });
+      return {
+        id: task.id,
+        number: index + 1,
+        type: `Task (${task.type?.name || 'Unknown'})`,
+        status: task.status?.name?.toLowerCase() || 'pending',
+        assignee: assignees,
+        sequence: task.parent?.parent?.name || 'Unassigned',
+        description: task.parent?.name || 'Unknown',
+        dueDate: task.end_date ? new Date(task.end_date).toISOString().split('T')[0] : null,
+        bidHours: task.bid ? task.bid / 3600 : 0,
+        actualHours: task.time_logged ? task.time_logged / 3600 : 0,
+        deltaHours: ((task?.time_logged || 0) - (task?.bid || 0)) / 3600
+      };
+    });
 
     res.json(tasks);
   } catch (err) {
-    console.error('❌ Failed to fetch project details:', err);
-    res.status(500).json({ error: 'Failed to fetch project details' });
+    console.error('❌ Failed to fetch project tasks:', err);
+    res.status(500).json({ error: 'Failed to fetch project tasks' });
   }
 });
+
 
 router.get('/task/:taskId/components', async (req, res) => {
   const { taskId } = req.params;
@@ -127,8 +115,8 @@ router.get('/task/:taskId/components', async (req, res) => {
       return res.status(404).json({ error: 'Shot context not found for task' });
     }
 
-    // 2. Query AssetVersion under that Shot context
-    const versions = await sessionInstance.query(`
+    // 2. Fetch AssetVersions under Shot
+    const shotVersionsQuery = await sessionInstance.query(`
       select
         asset.name,
         components.name,
@@ -140,20 +128,39 @@ router.get('/task/:taskId/components', async (req, res) => {
       order by date desc
     `);
 
-    const videos = versions.data
-      .map((av: any) => ({
-        name: av.components?.[0]?.name || av.asset?.name || 'Unnamed',
-        fileType: av.components?.[0]?.file_type || '',
-        url: av.components?.[0]?.component_locations?.[0]?.url || '',
-        date: av.date,
-      }))
-      .filter((v: any) => v.url);
+    // 3. Fetch AssetVersions directly under Task
+    const taskVersionsQuery = await sessionInstance.query(`
+      select
+        asset.name,
+        components.name,
+        components.file_type,
+        components.component_locations.url,
+        date
+      from AssetVersion
+      where task.id is ${taskId}
+      order by date desc
+    `);
+
+    const extractVideos = (versions: any[]) =>
+      versions
+        .map((av: any) => ({
+          name: av.components?.[0]?.name || av.asset?.name || 'Unnamed',
+          fileType: av.components?.[0]?.file_type || '',
+          url: av.components?.[0]?.component_locations?.[0]?.url || '',
+          date: av.date,
+        }))
+        .filter(v => v.url);
+
+    const videos = [
+      ...extractVideos(shotVersionsQuery.data),
+      ...extractVideos(taskVersionsQuery.data),
+    ];
 
     res.json(videos);
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Failed to fetch video components from shot context' });
+    res.status(500).json({ error: 'Failed to fetch video components from task and shot context' });
   }
 });
 

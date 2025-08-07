@@ -146,7 +146,8 @@ const toggleTaskSelection = (taskId: string) => {
   });
 };
 const handleOpenVideoSelector = async (taskId: string) => {
-  setVideoModalOpen(true); // Open modal early (optional, or wait below)
+  setActiveTaskId(taskId);
+  setVideoModalOpen(true);
 
   try {
     const res = await fetch(`http://localhost:8080/api/task/${taskId}/components`);
@@ -170,6 +171,8 @@ const handleOpenVideoSelector = async (taskId: string) => {
 
 
 const handleVideoSelect = (url: string) => {
+  console.log(url);
+  console.log("Selected task ID:", activeTaskId);
   setTasks((prev: Task[] | undefined) =>
     (prev || []).map((task: Task) =>
       task.id === activeTaskId ? { ...task, videos: [{ value: url }] } : task
@@ -217,7 +220,6 @@ const handleVideoSelect = (url: string) => {
   }
 
   const flatTasks = flattenTasks(tasks)
-  const selectedTaskObjects = flatTasks.filter(task => selectedTasks.has(task.id));
 const [videoUrl, setVideoUrl] = React.useState<string | null>(null);
 const [open, setOpen] = React.useState(false);
 const [loadingTaskId, setLoadingTaskId] = useState<string | null>(null);
@@ -243,7 +245,8 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
 
     const videoUrl = task.videos?.[0]?.value;
     if (!videoUrl) {
-      alert(`No video assigned to task ${task.id}.`);
+      console.warn(`No video assigned to task ${task.id}: ${JSON.stringify(task, null, 2)}`);
+
       continue;
     }
 
@@ -490,9 +493,13 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
       onClick={() => handleOpenVideoSelector(task.id)}
       sx={{ ml: 1, cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
     >
-      <Typography variant="body2" sx={{ color: "#e2e8f0", fontSize: "13px" }}>
-        {task.sequence || ""} / {task.description || ""} {/*/ {task.icon || ''}*/} 
-        </Typography>
+      <Typography variant="body2" sx={{ color: "#be676cff", fontSize: "13px" }}>
+          {task.videos?.length > 0 ? " Video Selected ! " : " Select Video "}
+          </Typography>
+          <Typography variant="body2" sx={{ color: "#e2e8f0", fontSize: "13px" }}>
+  {task.sequence || ""} / {task.description || ""}
+</Typography>
+
     </Box>
   </Box>
 </TableCell>
@@ -602,21 +609,40 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
 </Dialog>
 
     </TableContainer>
-    <Box
+ <Box
   sx={{
     position: "fixed",
     bottom: 24,
     left: "50%",
     transform: "translateX(-50%)",
     zIndex: 10,
+    display: "flex",
+    gap: 2, // spacing between buttons
   }}
 >
+  <Button
+    variant="outlined"
+    color="secondary"
+    size="medium"
+    disabled={selectedTasks.size === 0}
+    onClick={() => setSelectedTasks(new Set())}
+    sx={{
+      px: 4,
+      py: 1.5,
+      fontSize: "14px",
+      borderRadius: 2,
+      boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.10)",
+    }}
+  >
+    Clear Selection
+  </Button>
+
   <Button
     variant="contained"
     color="primary"
     size="medium"
     disabled={selectedTasks.size === 0}
-    onClick={() => sendToFunction(selectedTaskObjects)}
+    onClick={() => sendToFunction(tasks)}
     sx={{
       px: 4,
       py: 1.5,
@@ -628,6 +654,7 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
     Estimate Selected ({selectedTasks.size})
   </Button>
 </Box>
+
 <Dialog open={videoModalOpen} onClose={() => setVideoModalOpen(false)} maxWidth="md" fullWidth>
   <DialogContent>
     <Typography variant="h6" sx={{ mb: 2, color: "#e2e8f0" }}>
@@ -674,7 +701,7 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
         <Button
           size="small"
           variant="outlined"
-          onClick={() => handleVideoSelect(video)}
+          onClick={() => handleVideoSelect(video.value)}
         >
           Select
         </Button>
