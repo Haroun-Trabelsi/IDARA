@@ -493,9 +493,17 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
       onClick={() => handleOpenVideoSelector(task.id)}
       sx={{ ml: 1, cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
     >
-      <Typography variant="body2" sx={{ color: "#be676cff", fontSize: "13px" }}>
-          {task.videos?.length > 0 ? " Video Selected ! " : " Select Video "}
-          </Typography>
+      <Typography
+  variant="body2"
+  sx={{
+    color: task.videos?.length > 0 ? "#16a34a" : "#ff0000ff", // green if selected, yellow if not
+    fontSize: "13px",
+    fontWeight: 500,
+  }}
+>
+  {task.videos?.length > 0 ? "Video Selected!" : "Select Video"}
+</Typography>
+
           <Typography variant="body2" sx={{ color: "#e2e8f0", fontSize: "13px" }}>
   {task.sequence || ""} / {task.description || ""}
 </Typography>
