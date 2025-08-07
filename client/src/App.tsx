@@ -192,9 +192,8 @@ const App = () => {
         </Routes>
         </AuthProvider>
         </BrowserRouter>
-    </ProjectProvider>
-        <About />
-         <ChatbotWidget />
+      </ProjectProvider>
+    <ChatbotWidget />
     </>
   )
 };

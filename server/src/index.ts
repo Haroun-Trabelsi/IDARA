@@ -18,7 +18,6 @@ import ffmpeg from 'fluent-ffmpeg';
 if (ffmpegStatic) {
   ffmpeg.setFfmpegPath(ffmpegStatic);
 }
-import collaborator from './routes/collaborator'
 import contactRoutes from './routes/contact';
 
 import adminRoutes from './routes/admin';

@@ -44,12 +44,6 @@ const darkTheme = createTheme({
     },
   },
 })
-interface VideoComponent {
-  name: string;
-  fileType: string;
-  date: Date;
-  value: string;
-}
 
 
 
@@ -57,10 +51,13 @@ export default function ProjectManagementInterface() {
   const [ProjectData, setProjectData] = useState<Task[]>();
   
   const [filterText, setFilterText] = useState("");
-  const { selectedProject } = useProject();
+  const { selectedProject,setSelectedProject } = useProject();
 
 useEffect(() => {
-  if (!selectedProject) return;
+  if (!selectedProject) {
+    setSelectedProject({ id: "5e4dbaa0-1bc8-4978-b79e-30adf1977a20", name: "7760" });
+    return; // prevent fetch until selectedProject is actually set
+  }
 
   const fetchProject = async () => {
     try {
@@ -69,42 +66,8 @@ useEffect(() => {
       );
       const tasks: Task[] = await response.json();
 
-      const tasksWithVideos = await Promise.all(
-        tasks.map(async (task) => {
-          try {
-            const res = await fetch(`http://localhost:8080/api/task/${task.id}/components`);
-            const videoList = await res.json();
-
-          const formattedVideos: VideoComponent[] = videoList
-          .map((v: any): VideoComponent => ({
-            name: v.name,
-            fileType: v.fileType,
-            date: new Date(v.date),
-            value: v.url.value,
-          }))
-          .reverse();
-
-        const videosWithFormattedDates = formattedVideos.map((v: VideoComponent) => ({
-          ...v,
-          date: v.date.toLocaleDateString(), // format after sorting
-        }));
-
-            return {
-              ...task,
-              videos: videosWithFormattedDates,
-            };
-          } catch (err) {
-            console.error(`Failed to load videos for task ${task.id}`, err);
-            return {
-              ...task,
-              videos: [],
-            };
-          }
-        })
-      );
-
-      console.log("Fetched project tasks with reversed video lists:", tasksWithVideos);
-      setProjectData(tasksWithVideos);
+      // Just set tasks directly without fetching video components
+      setProjectData(tasks);
     } catch (error) {
       console.error("Failed to fetch project:", error);
     }
@@ -112,6 +75,7 @@ useEffect(() => {
 
   fetchProject();
 }, [selectedProject]);
+
 
 
 

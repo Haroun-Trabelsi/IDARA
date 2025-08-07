@@ -20,9 +20,7 @@ import {
   DialogContent,
   CircularProgress,
 } from "@mui/material"
-import {
-  PlayCircleOutline,
-} from "@mui/icons-material"
+import { toFraction } from "../../utils/fractionUtils"; 
 import React from "react"
 import { useProject } from '../../contexts/ProjectContext';
 
@@ -122,7 +120,6 @@ async function loadDifficultiesForTasks(tasksToLoad: Task[]) {
 }
 
 const [hasLoadedDifficulties, setHasLoadedDifficulties] = useState(false);
-const [isVideoLoading, setIsVideoLoading] = useState(false);
 
 
 useEffect(() => {
@@ -137,7 +134,10 @@ const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
 const [videoModalOpen, setVideoModalOpen] = useState(false);
 const [videoOptions, setVideoOptions] = useState<any[]>([]);
 const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
-
+const formatDays = (hours: number) => {
+  const days = Number((hours / 8).toFixed(1));
+  return toFraction(days); // will show as "1/2", "5/8", etc.
+};
 const toggleTaskSelection = (taskId: string) => {
   setSelectedTasks(prev => {
     const updated = new Set(prev);
@@ -146,7 +146,6 @@ const toggleTaskSelection = (taskId: string) => {
   });
 };
 const handleOpenVideoSelector = async (taskId: string) => {
-  setIsVideoLoading(true); // Start loading
   setVideoModalOpen(true); // Open modal early (optional, or wait below)
 
   try {
@@ -165,8 +164,6 @@ const handleOpenVideoSelector = async (taskId: string) => {
     setVideoOptions(formattedVideos);
   } catch (err) {
     console.error("Failed to load videos", err);
-  } finally {
-    setIsVideoLoading(false); // Done loading
   }
 };
 
@@ -225,30 +222,9 @@ const [videoUrl, setVideoUrl] = React.useState<string | null>(null);
 const [open, setOpen] = React.useState(false);
 const [loadingTaskId, setLoadingTaskId] = useState<string | null>(null);
 const [queuedTaskIds, setQueuedTaskIds] = useState<Set<string>>(new Set());
-const [taskJobIds, setTaskJobIds] = useState<Record<string, string>>({});
-
-const cancelJob = async (jobId: string) => {
-  try {
-    const res = await fetch(`http://localhost:8089/cancel/${jobId}`, {
-      method: "POST",
-    });
-    const data = await res.json();
-    if (data.status === "cancelled") {
-      alert("Processing cancelled.");
-      // Optional: update UI to reflect cancellation
-    } else {
-      alert("Could not cancel: " + data.message);
-    }
-  } catch (err) {
-    console.error("Cancellation failed:", err);
-  }
-};
 
 
-const handleOpenVideo = (url: string) => {
-  setVideoUrl(url);
-  setOpen(true);
-};
+
 const handleCloseVideo = () => {
   setOpen(false);
   setVideoUrl(null);
@@ -288,8 +264,6 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
 
       if (!uploadResponse.ok) throw new Error(`Upload failed with status ${uploadResponse.status}`);
       const { job_id } = await uploadResponse.json();
-      setTaskJobIds(prev => ({ ...prev, [task.id]: job_id }));
-
       const pollUrl = `http://localhost:8089/result/${job_id}`;
       const maxAttempts = 30;
       let resultReceived = false;
@@ -321,7 +295,7 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
       setLoadingTaskId(null);
     }
   }
-
+  setSelectedTasks(new Set());
   // Clear queue after all tasks
   setQueuedTaskIds(new Set());
 }
@@ -448,7 +422,7 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
                 fontWeight: 500,
               }}
             >
-              Bid hours
+              Bid Days
             </TableCell>
             <TableCell
               align="right"
@@ -461,7 +435,7 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
                 fontWeight: 500,
               }}
             >
-              +/- hours
+              +/- Days
             </TableCell>
             <TableCell
               align="center"
@@ -512,30 +486,13 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
 
          <TableCell sx={{ p: 1, borderBottom: "1px solid #2d3748" }}>
   <Box sx={{ display: "flex", alignItems: "center", pl: task.level * 2.5 }}>
-    {isVideoLoading && activeTaskId === task.id ? (
-      // Show spinner if videos for this task are loading
-      <CircularProgress size={20} sx={{ mr: 1 }} />
-    ) : task.videos && task.videos.length > 0 ? (
-      <IconButton
-        size="small"
-        onClick={() => handleOpenVideo(task.videos[0].value)}
-        sx={{ color: "#63b3ed", p: 0.5 }}
-        aria-label="play video"
-      >
-        <PlayCircleOutline fontSize="small" />
-      </IconButton>
-    ) : (
-      <Typography variant="body2" sx={{ color: "#a0aec0", fontSize: "13px" }}>
-        No video
-      </Typography>
-    )}
     <Box
       onClick={() => handleOpenVideoSelector(task.id)}
       sx={{ ml: 1, cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
     >
       <Typography variant="body2" sx={{ color: "#e2e8f0", fontSize: "13px" }}>
-        {task.sequence || ""} / {task.description || ""} / {task.icon || ''}
-      </Typography>
+        {task.sequence || ""} / {task.description || ""} {/*/ {task.icon || ''}*/} 
+        </Typography>
     </Box>
   </Box>
 </TableCell>
@@ -584,30 +541,24 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
                 </Typography>
               </TableCell>
 
-              <TableCell align="right" sx={{ p: 1, borderBottom: "1px solid #2d3748" }}>
-                <Typography variant="body2" sx={{ color: "#a0aec0", fontSize: "13px" }}>
-                  {task.bidHours.toFixed(2)}
-                </Typography>
-              </TableCell>
+ <TableCell align="right" sx={{ p: 1, borderBottom: "1px solid #2d3748" }}>
+  <Typography variant="body2" sx={{ color: "#a0aec0", fontSize: "13px" }}>
+    { formatDays(task.bidHours)} 
+  </Typography>
+</TableCell>
 
-              <TableCell align="right" sx={{ p: 1, borderBottom: "1px solid #2d3748" }}>
-                <Typography variant="body2" sx={{ color: "#a0aec0", fontSize: "13px" }}>
-                  {task.actualHours.toFixed(2)}
-                </Typography>
-              </TableCell>
+<TableCell align="right" sx={{ p: 1, borderBottom: "1px solid #2d3748" }}>
+  <Typography variant="body2" sx={{ color: "#a0aec0", fontSize: "13px" }}>
+   { formatDays(task.actualHours)}
+  </Typography>
+</TableCell>
+
 <TableCell>
   {loadingTaskId === task.id ? (
     <Box sx={{ display: 'flex', alignItems: 'center' }}>
       <CircularProgress size={20} sx={{ mr: 1 }} />
       <Typography variant="body2" color="textSecondary">Processing...</Typography>
-      <Button
-        color="error"
-        variant="outlined"
-        onClick={() => cancelJob(taskJobIds[task.id])}
-        disabled={!taskJobIds[task.id]}
-      >
-        Cancel
-      </Button>
+      
     </Box>
   ) : queuedTaskIds.has(task.id) ? (
     <Typography variant="body2" color="textSecondary">Queued ..</Typography>
