@@ -1,9 +1,10 @@
-import React, { FC } from 'react';
+
+import React, { FC, useRef, Dispatch, SetStateAction } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, PieChart, Pie, Cell
 } from 'recharts';
-import { Eye, Edit, Trash2, Send, Star, TrendingUp, Building2, Clapperboard, Users, Mail } from 'lucide-react';
+import { Eye, Edit, Trash2, Send, Star, Building2, Clapperboard, Users, Mail } from 'lucide-react';
 import axios from 'axios';
 
 // Interfaces
@@ -25,6 +26,7 @@ interface Organization {
   joinDate: string;
   lastActive: string;
   rating: number;
+  feedbacks: { rating: number; feedbackText: string; featureSuggestions: string[]; createdAt: string }[];
 }
 
 interface OrganizationGrowthData {
@@ -39,103 +41,98 @@ interface RatingDistribution {
   percentage: number;
 }
 
-interface Task {
-  id: string;
-  type: string;
-  status: string;
-  assignee: string;
-  description: string;
-  dueDate: string;
-  bidHours: number;
-  plusMinusHours: number;
+interface ProjectMetric {
+  organizationName: string;
+  totalProjects: number;
+  activeProjects: number;
+  completedProjects: number;
+  totalTasks: number;
 }
-
-const tasksData: Task[] = [
-  { id: '7760', type: 'Project', status: '', assignee: '', description: '', dueDate: '2024-09-10', bidHours: 344.00, plusMinusHours: 119.88 },
-  { id: '129', type: 'Sequence', status: '', assignee: '', description: '', dueDate: '', bidHours: 4.00, plusMinusHours: 0.97 },
-  { id: '060', type: 'Shot', status: '', assignee: '', description: '', dueDate: '', bidHours: 4.00, plusMinusHours: 0.97 },
-  { id: '131', type: 'Sequence', status: '', assignee: '', description: '', dueDate: '2024-09-03', bidHours: 23.00, plusMinusHours: 1.05 },
-  { id: '014', type: 'Shot', status: '', assignee: '', description: '', dueDate: '2024-08-30', bidHours: 8.00, plusMinusHours: 0.02 },
-  { id: '015', type: 'Shot', status: '', assignee: '', description: '', dueDate: '2024-09-03', bidHours: 15.00, plusMinusHours: 1.02 },
-  { id: '132', type: 'Sequence', status: '', assignee: '', description: '', dueDate: '2024-09-04', bidHours: 38.00, plusMinusHours: 32.89 },
-  { id: '040', type: 'Shot', status: 'Omitted', assignee: '', description: '', dueDate: '', bidHours: 4.00, plusMinusHours: 4.00 },
-  { id: '050', type: 'Shot', status: '', assignee: '', description: '', dueDate: '', bidHours: 5.00, plusMinusHours: 5.00 },
-];
-
-const handleSendEmail = async (subject: string, message: string, target: string) => {
-  try {
-    await axios.post('http://localhost:8080/api/admin/send-email', {
-      subject,
-      message,
-      target
-    }, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-    });
-    alert('Email sending initiated');
-  } catch (error) {
-    console.error('Error sending email:', error);
-  }
-};
 
 interface AdminDashboardContentProps {
   darkMode: boolean;
   selectedMenuItem: string;
   emailSubject: string;
-  setEmailSubject: (value: string) => void;
+  setEmailSubject: Dispatch<SetStateAction<string>>;
   emailMessage: string;
-  setEmailMessage: (value: string) => void;
+  setEmailMessage: Dispatch<SetStateAction<string>>;
   dashboardData: {
     totalOrganizations: number;
-    activeProjects: number;
+    totalProjects: number;
     totalUsers: number;
     organizationGrowthData: OrganizationGrowthData[];
     ratingDistribution: RatingDistribution[];
     organizationsList: Organization[];
+    projectMetrics: ProjectMetric[];
   };
 }
 
 const AdminDashboardContent: FC<AdminDashboardContentProps> = ({
   darkMode,
-  selectedMenuItem,
+  
   emailSubject,
   setEmailSubject,
   emailMessage,
   setEmailMessage,
   dashboardData,
 }) => {
+  // Références pour le défilement fluide
+  const dashboardRef = useRef<HTMLDivElement>(null);
+  const organizationsRef = useRef<HTMLDivElement>(null);
+  const projectsRef = useRef<HTMLDivElement>(null);
+  const emailCenterRef = useRef<HTMLDivElement>(null);
+
+  // Gestion du clic sur la barre latérale
+ /* const handleMenuClick = (menuItem: string, ref: React.RefObject<HTMLDivElement | null>) => {
+    if (ref.current) {
+      ref.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  };*/
+
+  // Gestion de l'envoi d'email
+  const handleSendEmail = async (subject: string, message: string, target: string) => {
+    try {
+      const response = await axios.post('http://localhost:8080/api/admin/send-email', {
+        subject,
+        message,
+        target,
+      }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      });
+      alert(response.data.message);
+    } catch (error) {
+      console.error('Error sending email:', error);
+      alert('Failed to send email');
+    }
+  };
+
+  // Calculer averageRating et totalReviews
+  const averageRating = dashboardData.organizationsList.reduce((acc, org) => acc + org.rating, 0) / (dashboardData.organizationsList.length || 1);
+  const totalReviews = dashboardData.organizationsList.reduce((acc, org) => acc + org.feedbacks.length, 0);
+
   const stats: Stat[] = [
     {
       title: 'Total Organizations',
       value: dashboardData.totalOrganizations,
       icon: Building2,
       color: '#4299e1',
-      change: '+12%'
+      change: '+12%',
     },
     {
-      title: 'Active Projects',
-      value: dashboardData.activeProjects,
+      title: 'Total Projects',
+      value: dashboardData.totalProjects,
       icon: Clapperboard,
       color: '#10b981',
-      change: '+8%'
+      change: '+8%',
     },
     {
       title: 'Total Users',
       value: dashboardData.totalUsers,
       icon: Users,
       color: '#f59e0b',
-      change: '+15%'
+      change: '+15%',
     },
-    {
-      title: 'Monthly Growth',
-      value: '12.5%',
-      icon: TrendingUp,
-      color: '#8b5cf6',
-      change: '+2.1%'
-    }
   ];
-
-  const averageRating = dashboardData.organizationsList.reduce((acc, org) => acc + org.rating, 0) / dashboardData.organizationsList.length || 0;
-  const totalReviews = dashboardData.organizationsList.length;
 
   const StarRating: FC<{ rating: number; size?: number }> = ({ rating, size = 16 }) => {
     const stars = [];
@@ -238,7 +235,7 @@ const AdminDashboardContent: FC<AdminDashboardContentProps> = ({
           <div style={styles.starsContainer}>
             <StarRating rating={averageRating} size={24} />
           </div>
-          <div style={styles.totalReviews}>Based on {totalReviews} organizations</div>
+          <div style={styles.totalReviews}>Based on {totalReviews} reviews</div>
         </div>
         <div style={styles.ratingDistribution}>
           {dashboardData.ratingDistribution.map((item) => (
@@ -264,8 +261,7 @@ const AdminDashboardContent: FC<AdminDashboardContentProps> = ({
         <h3 style={styles.tableTitle}>Organization Management</h3>
         <div style={styles.tableActions}>
           <button style={{ ...styles.button, ...styles.primaryButton }} onClick={() => handleSendEmail(emailSubject, emailMessage, 'all')}>
-            <Mail size={16} />
-            Send Email to All
+            <Mail size={16} /> Send Email to All
           </button>
           <select
             style={{ ...styles.button, ...styles.secondaryButton, padding: '8px' }}
@@ -288,6 +284,7 @@ const AdminDashboardContent: FC<AdminDashboardContentProps> = ({
               <th style={styles.tableHeadCell}>Rating</th>
               <th style={styles.tableHeadCell}>Status</th>
               <th style={styles.tableHeadCell}>Last Active</th>
+              <th style={styles.tableHeadCell}>Feedbacks</th>
               <th style={styles.tableHeadCell}>Actions</th>
             </tr>
           </thead>
@@ -308,26 +305,37 @@ const AdminDashboardContent: FC<AdminDashboardContentProps> = ({
                 <td style={styles.tableBodyCell}>
                   <div style={styles.orgRating}>
                     <StarRating rating={org.rating} size={14} />
-                    <span style={styles.ratingNumber}>{org.rating}</span>
+                    <span style={styles.ratingNumber}>{org.rating.toFixed(1)}</span>
                   </div>
                 </td>
                 <td style={styles.tableBodyCell}>
-                  <span
-                    style={{
-                      ...styles.statusBadge,
-                      ...(org.status === 'active' ? styles.activeStatus : styles.inactiveStatus)
-                    }}
-                  >
+                  <span style={{ ...styles.statusBadge, ...(org.status === 'active' ? styles.activeStatus : styles.inactiveStatus) }}>
                     {org.status === 'active' ? 'Active' : 'Inactive'}
                   </span>
                 </td>
                 <td style={styles.tableBodyCell}>{org.lastActive}</td>
                 <td style={styles.tableBodyCell}>
+                  {org.feedbacks.length ? (
+                    <ul style={{ padding: 0, margin: 0, listStyle: 'none' }}>
+                      {org.feedbacks.map((f, index) => (
+                        <li key={index} style={{ marginBottom: '5px' }}>
+                          <div><strong>Rating:</strong> {f.rating}/5</div>
+                          <div><strong>Text:</strong> {f.feedbackText || 'No text'}</div>
+                          <div><strong>Suggestions:</strong> {f.featureSuggestions.join(', ') || 'None'}</div>
+                          <div><strong>Date:</strong> {f.createdAt}</div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    'No feedbacks'
+                  )}
+                </td>
+                <td style={styles.tableBodyCell}>
                   <div style={styles.actionButtons}>
                     <button style={{ ...styles.iconButton, color: '#4299e1' }}><Eye size={16} /></button>
                     <button style={{ ...styles.iconButton, color: '#4299e1' }}><Edit size={16} /></button>
                     <button style={{ ...styles.iconButton, color: '#ef4444' }}><Trash2 size={16} /></button>
-                    <button style={{ ...styles.iconButton, color: '#10b981' }}><Send size={16} /></button>
+                    <button style={{ ...styles.iconButton, color: '#10b981' }} onClick={() => handleSendEmail(emailSubject, emailMessage, org.name)}><Send size={16} /></button>
                   </div>
                 </td>
               </tr>
@@ -338,41 +346,33 @@ const AdminDashboardContent: FC<AdminDashboardContentProps> = ({
     </div>
   );
 
-  const TasksTable: FC = () => (
+  const ProjectMetricsTable: FC = () => (
     <div style={styles.tableCard}>
       <div style={styles.tableHeader}>
-        <h3 style={styles.tableTitle}>Task Management</h3>
+        <h3 style={styles.tableTitle}>Project Metrics by Organization</h3>
       </div>
       <div style={{ overflowX: 'auto' }}>
         <table style={styles.table}>
           <thead>
             <tr>
-              <th style={styles.tableHeadCell}>#</th>
-              <th style={styles.tableHeadCell}>Task</th>
-              <th style={styles.tableHeadCell}>Type</th>
-              <th style={styles.tableHeadCell}>Status</th>
-              <th style={styles.tableHeadCell}>Assignee</th>
-              <th style={styles.tableHeadCell}>Description</th>
-              <th style={styles.tableHeadCell}>Due Date</th>
-              <th style={styles.tableHeadCell}>Bid Hours</th>
-              <th style={styles.tableHeadCell}>+/- Hours</th>
+              <th style={styles.tableHeadCell}>Organization</th>
+              <th style={styles.tableHeadCell}>Total Projects</th>
+              <th style={styles.tableHeadCell}>Active Projects</th>
+              <th style={styles.tableHeadCell}>Completed Projects</th>
+              <th style={styles.tableHeadCell}>Total Tasks</th>
             </tr>
           </thead>
           <tbody>
-            {tasksData.map((task) => (
-              <tr key={task.id} style={styles.tableRow}
+            {dashboardData.projectMetrics.map((metric, index) => (
+              <tr key={index} style={styles.tableRow}
                 onMouseEnter={(e) => (e.currentTarget as HTMLTableRowElement).style.backgroundColor = darkMode ? '#2d3748' : '#f8fafc'}
                 onMouseLeave={(e) => (e.currentTarget as HTMLTableRowElement).style.backgroundColor = 'transparent'}
               >
-                <td style={styles.tableBodyCell}>{task.id}</td>
-                <td style={styles.tableBodyCell}>{task.id}</td> {/* Placeholder for task */}
-                <td style={styles.tableBodyCell}>{task.type}</td>
-                <td style={styles.tableBodyCell}>{task.status}</td>
-                <td style={styles.tableBodyCell}>{task.assignee}</td>
-                <td style={styles.tableBodyCell}>{task.description}</td>
-                <td style={styles.tableBodyCell}>{task.dueDate}</td>
-                <td style={styles.tableBodyCell}>{task.bidHours}</td>
-                <td style={styles.tableBodyCell}>{task.plusMinusHours}</td>
+                <td style={styles.tableBodyCell}>{metric.organizationName}</td>
+                <td style={styles.tableBodyCell}>{metric.totalProjects}</td>
+                <td style={styles.tableBodyCell}>{metric.activeProjects}</td>
+                <td style={styles.tableBodyCell}>{metric.completedProjects}</td>
+                <td style={styles.tableBodyCell}>{metric.totalTasks}</td>
               </tr>
             ))}
           </tbody>
@@ -414,8 +414,7 @@ const AdminDashboardContent: FC<AdminDashboardContentProps> = ({
             <div style={styles.quickActions}>
               <button style={{ ...styles.button, ...styles.secondaryButton, ...styles.fullWidthButton }}
                 onClick={() => handleSendEmail(emailSubject, emailMessage, 'all')}>
-                <Mail size={16} />
-                Send to All Organizations
+                <Mail size={16} /> Send to All Organizations
               </button>
               <select
                 style={{ ...styles.button, ...styles.secondaryButton, ...styles.fullWidthButton, padding: '12px' }}
@@ -428,8 +427,7 @@ const AdminDashboardContent: FC<AdminDashboardContentProps> = ({
               </select>
               <button style={{ ...styles.button, ...styles.primaryButton, ...styles.fullWidthButton }}
                 onClick={() => handleSendEmail(emailSubject, emailMessage, 'all')}>
-                <Send size={16} />
-                Send Email
+                <Send size={16} /> Send Email
               </button>
             </div>
             <div style={styles.emailStats}>
@@ -449,32 +447,6 @@ const AdminDashboardContent: FC<AdminDashboardContentProps> = ({
             </div>
           </div>
         </div>
-      </div>
-    </div>
-  );
-
-  const RecentActivity: FC = () => (
-    <div style={styles.activityCard}>
-      <div style={styles.tableHeader}>
-        <h3 style={styles.tableTitle}>Recent Activity</h3>
-      </div>
-      <div style={styles.emailContent}>
-        {[
-          { action: 'New organization registered', org: 'Framestore Studios', time: '2 hours ago', color: '#10b981' },
-          { action: 'Project completed', org: 'Pixar Animation Studios', time: '4 hours ago', color: '#4299e1' },
-          { action: 'User limit exceeded', org: 'MPC Studios', time: '6 hours ago', color: '#f59e0b' },
-          { action: 'Payment failed', org: 'Weta Digital', time: '1 day ago', color: '#ef4444' },
-          { action: 'New 5-star rating received', org: 'Industrial Light & Magic', time: '2 days ago', color: '#8b5cf6' }
-        ].map((activity, index) => (
-          <div key={index} style={{ ...styles.activityItem, borderBottom: index === 4 ? 'none' : styles.activityItem.borderBottom }}>
-            <div style={{ ...styles.activityDot, backgroundColor: activity.color }} />
-            <div style={styles.activityContent}>
-              <p style={styles.activityAction}>{activity.action}</p>
-              <p style={styles.activityOrg}>{activity.org}</p>
-            </div>
-            <span style={styles.activityTime}>{activity.time}</span>
-          </div>
-        ))}
       </div>
     </div>
   );
@@ -773,58 +745,31 @@ const AdminDashboardContent: FC<AdminDashboardContentProps> = ({
       fontSize: '12px',
       color: '#e2e8f0',
     },
-    activityCard: {
-      backgroundColor: '#2d3748',
-      borderRadius: '8px',
-      padding: '15px',
-    },
-    activityItem: {
-      display: 'flex',
-      alignItems: 'center',
-      padding: '10px 0',
-      borderBottom: '1px solid #2d3748',
-    },
-    activityDot: {
-      width: '10px',
-      height: '10px',
-      borderRadius: '50%',
-      marginRight: '10px',
-    },
-    activityContent: {
-      flex: 1,
-    },
-    activityAction: {
-      fontSize: '14px',
-      margin: 0,
-      color: '#e2e8f0',
-    },
-    activityOrg: {
-      fontSize: '12px',
-      color: '#a0aec0',
-      margin: 0,
-    },
-    activityTime: {
-      fontSize: '12px',
-      color: '#a0aec0',
-    },
-    content: {
-      padding: '20px',
+    section: {
+      marginBottom: '40px',
     },
   };
 
   return (
-    <div style={styles.content}>
-      {selectedMenuItem === 'dashboard' && (
-        <>
-          <StatsCards />
-          <ChartsSection />
-          <RatingDashboard />
-        </>
-      )}
-      {selectedMenuItem === 'organizations' && <OrganizationsTable />}
-      {selectedMenuItem === 'projects' && <TasksTable />}
-      {selectedMenuItem === 'emails' && <EmailCenter />}
-      {selectedMenuItem === 'settings' && <RecentActivity />}
+    <div>
+      <div ref={dashboardRef} style={styles.section}>
+        <h2 style={{ color: '#e2e8f0', marginBottom: '20px' }}>Dashboard</h2>
+        <StatsCards />
+        <ChartsSection />
+        <RatingDashboard />
+      </div>
+      <div ref={organizationsRef} style={styles.section}>
+        <h2 style={{ color: '#e2e8f0', marginBottom: '20px' }}>Organizations</h2>
+        <OrganizationsTable />
+      </div>
+      <div ref={projectsRef} style={styles.section}>
+        <h2 style={{ color: '#e2e8f0', marginBottom: '20px' }}>Projects</h2>
+        <ProjectMetricsTable />
+      </div>
+      <div ref={emailCenterRef} style={styles.section}>
+        <h2 style={{ color: '#e2e8f0', marginBottom: '20px' }}>Mail Center</h2>
+        <EmailCenter />
+      </div>
     </div>
   );
 };

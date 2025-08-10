@@ -14,7 +14,7 @@ class JWT {
     console.log('Debug: Server time during JWT initialization:', new Date().toISOString());
   }
 
-  signToken(payload: Record<string, any>, expiresIn: jsonwebtoken.SignOptions['expiresIn'] = '7d') {
+  signToken(payload: Record<string, any>, expiresIn: jsonwebtoken.SignOptions['expiresIn'] = '4h') {
     if (!this.secret) {
       throw new Error('JWT_SECRET is not defined');
     }

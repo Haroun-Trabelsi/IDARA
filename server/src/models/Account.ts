@@ -6,19 +6,21 @@ interface I extends Document, Account {
   createdAt: Date;
   updatedAt: Date;
   organizationName: string;
-  invitedBy?: string; // Référence à l'ID de l'utilisateur qui a invité
-  canInvite: boolean; // Indique si l'utilisateur peut inviter d'autres collaborateurs
-  status?: 'pending' | 'accepted' | 'expired'; // Statut de l'invitation
-  invitedDate?: Date; // Date d'invitation
-  verificationToken?: string; // Token pour la vérification
-  verificationTokenExpires?: Date; // Date d'expiration du token
-  mustCompleteProfile: boolean; // Nouveau champ
+  invitedBy?: string;
+  canInvite: boolean;
+  status?: 'pending' | 'accepted' | 'expired' | 'AdministratorOrganization';
+  invitedDate?: Date;
+  verificationToken?: string;
+  verificationTokenExpires?: Date;
+  mustCompleteProfile: boolean;
   receiveUpdates: boolean;
-  organizationSize: number; // Nouveau champ, initialisé à 5
-  feedbackText?: string; // Champ pour le texte du feedback (textarea)
-  featureSuggestions?: string[]; // Tableau pour les suggestions de fonctionnalités
-  rating?: number; // Champ pour la note
-
+  feedbackText?: string;
+  featureSuggestions?: string[];
+  rating?: number;
+  teamSize: string;
+  region: string;
+  ID_Organization?: string;
+  lastConnexion?: Date; // Nouveau champ pour la dernière connexion
 }
 
 const instance = new Schema<I>(
@@ -69,21 +71,21 @@ const instance = new Schema<I>(
     },
     organizationName: {
       type: String,
-      required: true, // Chaque compte doit appartenir à une organisation
+      required: true,
     },
     invitedBy: {
       type: Schema.Types.ObjectId,
-      ref: 'Account', // Référence à un autre utilisateur Account
-      required: false, // Seulement pour les invités
+      ref: 'Account',
+      required: false,
     },
     canInvite: {
       type: Boolean,
-      default: true, // Par défaut, seul l'admin initial peut inviter
+      default: true,
     },
     status: {
       type: String,
-      enum: ['pending', 'accepted', 'expired', 'Administrator'],
-      default: 'pending', // Par défaut pour les invitations
+      enum: ['pending', 'accepted', 'expired', 'AdministratorOrganization'],
+      default: 'AdministratorOrganization',
     },
     invitedDate: {
       type: Date,
@@ -97,16 +99,44 @@ const instance = new Schema<I>(
       type: Date,
       required: false,
     },
-    mustCompleteProfile: { type: Boolean, default: false }, // Nouveau champ
-
-    receiveUpdates: { type: Boolean, default: false },
-
-    organizationSize: { type: Number, default: 5 }, // Nouveau champ, initialisé à 5
-    feedbackText: { type: String, required: false }, // Champ pour le texte du feedback
-    featureSuggestions: { type: [String], required: false }, // Tableau pour les suggestions
-    rating: { type: Number, required: false }, // Champ pour la note
+    mustCompleteProfile: { 
+      type: Boolean, 
+      default: false 
+    },
+    receiveUpdates: { 
+      type: Boolean, 
+      default: false 
+    },
+   
+    feedbackText: { 
+      type: String, 
+      required: false 
+    },
+    featureSuggestions: { 
+      type: [String], 
+      required: false 
+    },
+    rating: { 
+      type: Number, 
+      required: false 
+    },
+    teamSize: {
+      type: String,
+      required: true,
+    },
+    region: {
+      type: String,
+      required: true,
+    },
+    ID_Organization: {
+      type: String,
+      required: function() { return this.status === 'AdministratorOrganization'; }, 
+    },
+    lastConnexion: {  // Nouveau champ ajouté ici
+      type: Date,
+      required: false,
+    },
   },
-
   {
     timestamps: true,
   }

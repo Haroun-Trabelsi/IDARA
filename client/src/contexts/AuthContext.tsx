@@ -21,13 +21,15 @@ interface Account {
   mfaSecret?: string;
   mfaEnabled: boolean;
   organizationName: string;
+  status: "pending" | "accepted" | "expired" | "AdministratorOrganization";
   invitedBy?: string;
   canInvite: boolean;
   mustCompleteProfile: boolean;
-  organizationSize: number;
   feedbackText?: string;
   featureSuggestions?: string[];
   rating?: number;
+  teamSize: string;
+  region: string;
 }
 
 export interface FormData {
@@ -36,6 +38,8 @@ export interface FormData {
   organizationName: string;
   email: string;
   password: string;
+  teamSize: string;
+  region: string;
 }
 
 interface AuthContextType {
@@ -43,26 +47,24 @@ interface AuthContextType {
   token: string | null;
   isLoggedIn: boolean;
   login: (data: LoginData) => Promise<void>;
-  register: (data: FormData & { role: 'user' | 'admin'; canInvite: boolean; isVerified: boolean; mfaEnabled: boolean }) => Promise<void>;
+  register: (data: FormData & { role: 'user' | 'admin'; canInvite: boolean; isVerified: boolean; mfaEnabled: boolean; status: string }) => Promise<void>;
   logout: () => void;
   updateAccount: (updatedAccount: Account) => void;
   checkAuth: () => boolean;
-  isLoading: boolean; // Nouvel état de chargement
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Initialisation synchrone à partir de localStorage
 const initialToken = localStorage.getItem('token');
 const initialAccount = initialToken ? (JSON.parse(localStorage.getItem('account') || '{}') as Account) : null;
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [account, setAccount] = useState<Account | null>(initialAccount);
   const [token, setToken] = useState<string | null>(initialToken);
-  const [isLoading, setIsLoading] = useState(true); // État de chargement
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Vérification et mise à jour de l'état une seule fois
     const savedToken = localStorage.getItem('token');
     const savedAccount = localStorage.getItem('account');
     if (savedToken && savedAccount) {
@@ -78,8 +80,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setAccount(null);
       }
     }
-    setIsLoading(false); // Fin du chargement après restauration
-  }, []); // Exécuté une seule fois au montage
+    setIsLoading(false);
+  }, []);
 
   const isLoggedIn = !!account && !!token;
 
@@ -95,6 +97,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         organizationName: accountData.organizationName || '',
         canInvite: accountData.canInvite || false,
         mustCompleteProfile: accountData.mustCompleteProfile || false,
+        teamSize: accountData.teamSize || '',
+        region: accountData.region || '',
       };
       setToken(token);
       setAccount(fullAccount);
@@ -106,7 +110,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const register = async (data: FormData & { role: 'user' | 'admin'; canInvite: boolean; isVerified: boolean; mfaEnabled: boolean }) => {
+  const register = async (data: FormData & { role: 'user' | 'admin'; canInvite: boolean; isVerified: boolean; mfaEnabled: boolean; status: string }) => {
     try {
       const response = await axios.post('/auth/register', data);
       const { token, data: accountData } = response.data;
@@ -119,6 +123,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         organizationName: data.organizationName || '',
         canInvite: data.canInvite || false,
         mustCompleteProfile: false,
+        teamSize: data.teamSize || '',
+        region: data.region || '',
       };
       setToken(token);
       setAccount(fullAccount);

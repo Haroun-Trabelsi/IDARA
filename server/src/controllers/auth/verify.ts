@@ -73,7 +73,7 @@ const verify: RequestHandler<{ token?: string }, any, VerifyBody, {}> = async (
     account.verificationCodeExpires = undefined;
     await account.save();
 
-    res.status(200).json({ message: 'Email verified successfully! You can now log in.' });
+    res.status(200).json({ message: 'Email verified successfully!' });
   } catch (error: any) {
     console.log('Verification error:', error);
     return next({

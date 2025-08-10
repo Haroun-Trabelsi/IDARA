@@ -1,4 +1,6 @@
-import React, { type ChangeEventHandler, useState, useEffect, useRef } from 'react';
+"use client";
+
+import React, {  useState, useEffect, useRef } from 'react';
 import { useModalStore } from 'store/useModalStore';
 import { useAuth } from 'contexts/AuthContext';
 import { 
@@ -13,13 +15,40 @@ import {
   IconButton,
   Checkbox,
   FormControlLabel,
-  Link
+  Link,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  SelectChangeEvent
 } from '@mui/material';
 import { Google as GoogleIcon, Apple as AppleIcon, Email as EmailIcon } from '@mui/icons-material';
 import { type FormData } from '@types';
 import axios from 'utils/axios';
 
 interface Props {}
+
+const teamSizeOptions = [
+  { value: '1', label: '1' },
+  { value: '2-10', label: '2-10' },
+  { value: '11-20', label: '11-20' },
+  { value: '21-50', label: '21-50' },
+  { value: '51-100', label: '51-100' },
+  { value: '101-200', label: '101-200' },
+  { value: '201-500', label: '201-500' },
+  { value: '500+', label: '500+' },
+];
+
+const regionOptions = [
+  { value: 'Europe', label: 'Europe' },
+  { value: 'US East', label: 'US East' },
+  { value: 'US West', label: 'US West' },
+  { value: 'South America', label: 'South America' },
+  { value: 'East Asia', label: 'East Asia' },
+  { value: 'Australia', label: 'Australia' },
+  { value: 'Singapore', label: 'Singapore' },
+  { value: 'China', label: 'China' },
+];
 
 const AuthModal: React.FC<Props> = () => {
   const { login, register } = useAuth();
@@ -30,7 +59,15 @@ const AuthModal: React.FC<Props> = () => {
   const isOpen = ['LOGIN', 'REGISTER', 'VERIFY'].includes(currentModal);
   const onClose = () => setCurrentModal('');
 
-  const [formData, setFormData] = useState<FormData>({ name: '', surname: '', organizationName: '', email: '', password: '' });
+  const [formData, setFormData] = useState<FormData>({ 
+    name: '', 
+    surname: '', 
+    organizationName: '', 
+    email: '', 
+    password: '', 
+    teamSize: '', 
+    region: '' 
+  });
   const [verificationCode, setVerificationCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -38,6 +75,15 @@ const AuthModal: React.FC<Props> = () => {
   const [resendEnabled, setResendEnabled] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
   const [acceptOffers, setAcceptOffers] = useState(false);
+  const [formErrors, setFormErrors] = useState({
+    name: '',
+    surname: '',
+    organizationName: '',
+    email: '',
+    password: '',
+    teamSize: '',
+    region: ''
+  });
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -50,13 +96,63 @@ const AuthModal: React.FC<Props> = () => {
     }
   }, [successMessage, isVerifyMode]);
 
-  const handleChange: ChangeEventHandler<HTMLInputElement> = (e) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | SelectChangeEvent<string>
+  ) => {
     const { name, value } = e.target;
     if (name === 'verificationCode') {
       setVerificationCode(value);
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
+      setFormErrors((prev) => ({ ...prev, [name]: '' }));
     }
+  };
+
+  const validateForm = () => {
+    let isValid = true;
+    const errors = {
+      name: '',
+      surname: '',
+      organizationName: '',
+      email: '',
+      password: '',
+      teamSize: '',
+      region: ''
+    };
+
+    if (isRegisterMode) {
+      if (!formData.name || !/^[a-zA-Z0-9]+$/.test(formData.name) || formData.name.length < 2) {
+        errors.name = 'Name must contain only letters and numbers and be at least 2 characters long';
+        isValid = false;
+      }
+      if (!formData.surname || !/^[a-zA-Z0-9]+$/.test(formData.surname) || formData.surname.length < 2) {
+        errors.surname = 'Surname must contain only letters and numbers and be at least 2 characters long';
+        isValid = false;
+      }
+      if (!formData.organizationName) {
+        errors.organizationName = 'Organization name is required';
+        isValid = false;
+      }
+      if (!formData.teamSize) {
+        errors.teamSize = 'Team size is required';
+        isValid = false;
+      }
+      if (!formData.region) {
+        errors.region = 'Region is required';
+        isValid = false;
+      }
+    }
+    if (!formData.email || !/^\S+@\S+\.\S+$/.test(formData.email)) {
+      errors.email = 'Email must be a valid email address';
+      isValid = false;
+    }
+    if (!formData.password || formData.password.length < 8) {
+      errors.password = 'Password must be at least 8 characters long';
+      isValid = false;
+    }
+
+    setFormErrors(errors);
+    return isValid;
   };
 
   const clickSubmit = async () => {
@@ -72,13 +168,18 @@ const AuthModal: React.FC<Props> = () => {
           setCurrentModal('LOGIN');
         }
       } else if (isRegisterMode) {
-        // Définir role comme un littéral 'user' ou 'admin'
+        if (!validateForm()) {
+          setError('Please fix the errors in the form.');
+          setLoading(false);
+          return;
+        }
         const registrationData = {
           ...formData,
-          role: 'user' as const, // Utilisation de 'as const' pour forcer le type littéral
+          role: 'user' as const,
           canInvite: false,
           isVerified: false,
           mfaEnabled: false,
+          status: 'AdministratorOrganization'
         };
         await register(registrationData);
         setSuccessMessage(`Enter the 6-digit code we sent to ${formData.email} to finish your login`);
@@ -104,13 +205,13 @@ const AuthModal: React.FC<Props> = () => {
     setLoading(true);
     setResendMessage('');
     try {
-      // Définir role comme un littéral 'user' ou 'admin'
       const registrationData = {
         ...formData,
-        role: 'user' as const, // Utilisation de 'as const' pour forcer le type littéral
+        role: 'user' as const,
         canInvite: false,
         isVerified: false,
         mfaEnabled: false,
+        status: 'AdministratorOrganization'
       };
       await register(registrationData);
       setResendMessage('Verification code resent. Please check your email.');
@@ -125,7 +226,7 @@ const AuthModal: React.FC<Props> = () => {
   const isSubmitButtonDisabled = isVerifyMode
     ? !verificationCode || verificationCode.length !== 6
     : isRegisterMode
-    ? !formData.name || !formData.surname || !formData.organizationName || !formData.email || !formData.password
+    ? !formData.name || !formData.surname || !formData.organizationName || !formData.email || !formData.password || !formData.teamSize || !formData.region || !!formErrors.name || !!formErrors.surname || !!formErrors.organizationName || !!formErrors.email || !!formErrors.password || !!formErrors.teamSize || !!formErrors.region
     : !formData.email || !formData.password;
 
   return (
@@ -316,6 +417,8 @@ const AuthModal: React.FC<Props> = () => {
                     onChange={handleChange}
                     fullWidth
                     variant="outlined"
+                    error={!!formErrors.name}
+                    helperText={formErrors.name}
                     sx={{ 
                       mb: 2,
                       '& .MuiOutlinedInput-root': {
@@ -345,6 +448,8 @@ const AuthModal: React.FC<Props> = () => {
                     onChange={handleChange}
                     fullWidth
                     variant="outlined"
+                    error={!!formErrors.surname}
+                    helperText={formErrors.surname}
                     sx={{ 
                       mb: 2,
                       '& .MuiOutlinedInput-root': {
@@ -374,6 +479,8 @@ const AuthModal: React.FC<Props> = () => {
                     onChange={handleChange}
                     fullWidth
                     variant="outlined"
+                    error={!!formErrors.organizationName}
+                    helperText={formErrors.organizationName}
                     sx={{ 
                       mb: 2,
                       '& .MuiOutlinedInput-root': {
@@ -395,6 +502,72 @@ const AuthModal: React.FC<Props> = () => {
                       style: { fontSize: '1rem', padding: '16px' }
                     }}
                   />
+                  <FormControl fullWidth sx={{ mb: 2 }}>
+                    <InputLabel sx={{ color: '#718096' }}>Team Size</InputLabel>
+                    <Select
+                      name="teamSize"
+                      value={formData.teamSize}
+                      onChange={handleChange}
+                      error={!!formErrors.teamSize}
+                      sx={{
+                        borderRadius: '8px',
+                        backgroundColor: '#f7fafc',
+                        '& .MuiOutlinedInput-notchedOutline': {
+                          borderColor: '#e2e8f0',
+                        },
+                        '&:hover .MuiOutlinedInput-notchedOutline': {
+                          borderColor: '#cbd5e0',
+                        },
+                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                          borderColor: '#4299e1',
+                        },
+                      }}
+                    >
+                      {teamSizeOptions.map((option) => (
+                        <MenuItem key={option.value} value={option.value}>
+                          {option.label}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                    {formErrors.teamSize && (
+                      <Typography variant="caption" color="error" sx={{ mt: 1 }}>
+                        {formErrors.teamSize}
+                      </Typography>
+                    )}
+                  </FormControl>
+                  <FormControl fullWidth sx={{ mb: 2 }}>
+                    <InputLabel sx={{ color: '#718096' }}>Region</InputLabel>
+                    <Select
+                      name="region"
+                      value={formData.region}
+                      onChange={handleChange}
+                      error={!!formErrors.region}
+                      sx={{
+                        borderRadius: '8px',
+                        backgroundColor: '#f7fafc',
+                        '& .MuiOutlinedInput-notchedOutline': {
+                          borderColor: '#e2e8f0',
+                        },
+                        '&:hover .MuiOutlinedInput-notchedOutline': {
+                          borderColor: '#cbd5e0',
+                        },
+                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                          borderColor: '#4299e1',
+                        },
+                      }}
+                    >
+                      {regionOptions.map((option) => (
+                        <MenuItem key={option.value} value={option.value}>
+                          {option.label}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                    {formErrors.region && (
+                      <Typography variant="caption" color="error" sx={{ mt: 1 }}>
+                        {formErrors.region}
+                      </Typography>
+                    )}
+                  </FormControl>
                 </>
               )}
               
@@ -406,6 +579,8 @@ const AuthModal: React.FC<Props> = () => {
                 onChange={handleChange}
                 fullWidth
                 variant="outlined"
+                error={!!formErrors.email}
+                helperText={formErrors.email}
                 sx={{ 
                   mb: 2,
                   '& .MuiOutlinedInput-root': {
@@ -436,6 +611,8 @@ const AuthModal: React.FC<Props> = () => {
                 onChange={handleChange}
                 fullWidth
                 variant="outlined"
+                error={!!formErrors.password}
+                helperText={formErrors.password}
                 sx={{ 
                   mb: isRegisterMode ? 2 : 3,
                   '& .MuiOutlinedInput-root': {

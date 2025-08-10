@@ -41,6 +41,11 @@ const login: RequestHandler = async (req, res, next) => {
       })
     }
 
+    // Mise à jour de lastConnexion à la date actuelle
+    account.lastConnexion = new Date();
+    await account.save();
+    console.log(`lastConnexion mise à jour pour l'utilisateur ${account.email}: ${account.lastConnexion}`); // Log pour débogage
+
     // Generate access token
     const token = jwt.signToken({ uid: account._id, role: account.role })
 
