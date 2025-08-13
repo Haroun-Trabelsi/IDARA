@@ -17,10 +17,11 @@ const resultSchema = new Schema(
     project: { type: String, required: true },
     sequence: { type: String, required: true },
     shot: { type: String, required: true },
+    predicted_vfx_hours: { type: Number, default: null },  // <-- Added field here
   },
   {
     timestamps: true,
-    collection: 'results' 
+    collection: 'results',
   }
 )
 

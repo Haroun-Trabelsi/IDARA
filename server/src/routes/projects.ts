@@ -28,11 +28,12 @@ router.get('/projects/:projectName', async (req, res) => {
 
     const sessionInstance = await session;
 
-    // Query all tasks for the given project
+    // Query all tasks for the given project, including notes
     const taskQuery = await sessionInstance.query(`
       select
         id,
         name,
+        description,
         type.name,
         status.name,
         end_date,
@@ -40,7 +41,8 @@ router.get('/projects/:projectName', async (req, res) => {
         time_logged,
         parent.name,
         parent.parent.name,
-        assignments.resource.id
+        assignments.resource.id,
+        notes.id
       from Task
       where project.id is ${projectName}
     `);
@@ -57,10 +59,12 @@ router.get('/projects/:projectName', async (req, res) => {
     ];
 
     // Get user names
-    let usersById: Record<string, string> = {};
+    let usersById = {};
     if (userIds.length > 0) {
       const userQuery = await sessionInstance.query(`
-        select id, first_name, last_name, username from User where id in (${userIds.join(',')})
+        select id, first_name, last_name, username 
+        from User 
+        where id in (${userIds.join(',')})
       `);
       usersById = Object.fromEntries(
         userQuery.data.map(u => [
@@ -70,7 +74,6 @@ router.get('/projects/:projectName', async (req, res) => {
       );
     }
 
-    // Format task data
     const tasks = rawTasks.map((task, index) => {
       const assignees = task.assignments
         ?.map(a => usersById[a.resource?.id])
@@ -84,7 +87,9 @@ router.get('/projects/:projectName', async (req, res) => {
         status: task.status?.name?.toLowerCase() || 'pending',
         assignee: assignees,
         sequence: task.parent?.parent?.name || 'Unassigned',
-        description: task.parent?.name || 'Unknown',
+        taskName: task.parent?.name || 'Unknown',
+        description: task.description || '',
+        notes_count: task.notes?.length || 0,
         dueDate: task.end_date ? new Date(task.end_date).toISOString().split('T')[0] : null,
         bidHours: task.bid ? task.bid / 3600 : 0,
         actualHours: task.time_logged ? task.time_logged / 3600 : 0,
@@ -98,6 +103,7 @@ router.get('/projects/:projectName', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch project tasks' });
   }
 });
+
 
 
 router.get('/task/:taskId/components', async (req, res) => {

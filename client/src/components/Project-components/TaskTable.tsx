@@ -32,23 +32,27 @@ import { useProject } from '../../contexts/ProjectContext';
     Medium: string;
     Hard: string;
   }
+  eta?: number;
+
 }
 
 export interface Task {
   videos: any
   id: string;
   number: number;
-  type: string; // e.g., "Task (CamTrack)"
+  type: string; 
   status: "completed" | "in-progress" | "omitted" | "pending";
   assignee?: string;
   sequence?: string;
   description?: string;
   dueDate?: string;
   bidHours: number;
+  taskName? : string;
   actualHours: number;
-  level: number; // Keep if you want to apply styling (e.g., indentation)
+  level: number; 
   icon?: string;
   Difficulty?: Difficulty;
+  notes_count : number;
 }
 
 
@@ -78,7 +82,7 @@ export default function TaskTable({ project ,tasks, setTasks }: TaskTableProps) 
         return "#6b7280"
     }
   }
-async function fetchAllDifficulties(): Promise<Record<string, Record<string, Difficulty>>> {
+async function fetchAllDifficulties(): Promise<Record<string, Record<string, any>>> {
   try {
     if (!selectedProject || !selectedProject.name) {
       console.error("No project selected.");
@@ -87,9 +91,8 @@ async function fetchAllDifficulties(): Promise<Record<string, Record<string, Dif
 
     const res = await fetch(`http://localhost:8080/results/results_by_task?project=${selectedProject.name}`);
     if (!res.ok) throw new Error("Failed to fetch difficulty");
-
     const data = await res.json();
-    return data.results || {};
+    return data || {};
   } catch (error) {
     console.error("Error fetching difficulties:", error);
     return {};
@@ -97,27 +100,45 @@ async function fetchAllDifficulties(): Promise<Record<string, Record<string, Dif
 }
 
 async function loadDifficultiesForTasks(tasksToLoad: Task[]) {
-  const allResults = await fetchAllDifficulties();
-
+  const allResultsResponse = await fetchAllDifficulties();
+  const allResults = allResultsResponse.results || {};
   const updatedTasks = tasksToLoad.map((task) => {
-    const sequenceKey = task.sequence;
-    const descriptionKey = task.description;
+    const sequenceKey = String(task.sequence); // make sure keys match backend type
+    const shotKey = String(task.taskName); // match your backend's "descriptionId" (e.g. "100")
 
     if (
       sequenceKey &&
-      descriptionKey &&
+      shotKey &&
       allResults[sequenceKey] &&
-      allResults[sequenceKey][descriptionKey]
+      allResults[sequenceKey][shotKey]
     ) {
-      const difficulty = allResults[sequenceKey][descriptionKey];
-      return { ...task, Difficulty: difficulty };
+      const difficultyData = allResults[sequenceKey][shotKey];
+
+      const Difficulty: Difficulty = {
+        predicted_class: difficultyData.predicted_class || "",
+        probabilities: difficultyData.probabilities || undefined,
+        eta: Number(difficultyData.predicted_hours?.toFixed(2)) || 0,
+      };
+
+      return {
+        ...task,
+        Difficulty,
+        EstimatedHours: Number(difficultyData.predicted_hours?.toFixed(2)) || 0,
+      };
     }
 
-    return task;
+    return {
+      ...task,
+      Difficulty: undefined,
+      EstimatedHours: 0, // Default value if no difficulty data found
+    };
   });
 
   setTasks(updatedTasks);
 }
+
+
+
 
 const { selectedProject } = useProject();
 const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
@@ -169,8 +190,6 @@ const handleOpenVideoSelector = async (taskId: string) => {
 
 
 const handleVideoSelect = (url: string) => {
-  console.log(url);
-  console.log("Selected task ID:", activeTaskId);
   setTasks((prev: Task[] | undefined) =>
     (prev || []).map((task: Task) =>
       task.id === activeTaskId ? { ...task, videos: [{ value: url }] } : task
@@ -245,32 +264,36 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
 
     setLoadingTaskId(task.id);
 
-    const videoUrl = task.videos?.[0]?.value;
-    if (!videoUrl) {
-      console.warn(`No video assigned to task ${task.id}`);
-      setLoadingTaskId(null);
-      continue;
-    }
+   const videoUrl = task.videos?.[0]?.value;
+if (!videoUrl) {
+  console.warn(`No video assigned to task ${task.id}`);
+  setLoadingTaskId(null);
+  continue;
+}
 
-    try {
-      const videoResponse = await fetch(videoUrl);
-      if (!videoResponse.ok) throw new Error(`Failed to fetch video for task ${task.id}`);
-      const blob = await videoResponse.blob();
+try {
+  const videoResponse = await fetch(videoUrl);
+  if (!videoResponse.ok) throw new Error(`Failed to fetch video for task ${task.id}`);
+  const blob = await videoResponse.blob();
 
-      const sizeMB = blob.size / (1024 * 1024);
-      console.log(`Video size for task ${task.id}: ${sizeMB.toFixed(2)} MB`);
+  const sizeMB = blob.size / (1024 * 1024);
+  console.log(`Video size : ${sizeMB.toFixed(2)} MB`);
 
-      const formData = new FormData();
-      formData.append("file", blob, `${task.id}.mp4`);
-      formData.append(
-        "original_filename",
-        `Sequence - ${task.sequence} Task - ${task.description} Project Name - ${project}.mp4`
-      );
+  const formData = new FormData();
+  formData.append("file", blob, `${task.id}.mp4`);
 
-      const uploadResponse = await fetch("http://localhost:8089/upload_video", {
-        method: "POST",
-        body: formData,
-      });
+  formData.append(
+    "original_filename",
+    `Sequence - ${task.sequence} Task - ${task.taskName} Project Name - ${project}.mp4`
+  );
+  formData.append("description", task.description || "");
+  formData.append("notes_count", task.notes_count?.toString() || "0");
+
+  const uploadResponse = await fetch("http://localhost:8089/upload_video", {
+    method: "POST",
+    body: formData,
+  });
+
 
       if (!uploadResponse.ok) throw new Error(`Upload failed with status ${uploadResponse.status}`);
       const { job_id } = await uploadResponse.json();
@@ -294,17 +317,33 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
         }
 
         const res = await fetch(pollUrl);
+        if (!res.ok) {
+          console.error(`Failed to fetch result for job ${job_id}, status: ${res.status}`);
+          break;
+        }
         const data = await res.json();
 
         if (data.status === "done" && data.result) {
-          resultReceived = true;
-          setTasks(prev =>
-            (prev || []).map(t =>
-              t.id === task.id ? { ...t, Difficulty: data.result as Difficulty } : t
-            )
-          );
-          break;
-        }
+        resultReceived = true;
+
+        const difficultyInfo = data.result.classification_result;
+        const predictedHours = data.result.predicted_vfx_hours ?? 0;
+
+        setTasks(prev =>
+          (prev || []).map(t =>
+            t.id === task.id ? { 
+              ...t, 
+              Difficulty: {
+                ...difficultyInfo,
+                eta: predictedHours,
+              },
+              eta: predictedHours
+            } : t
+          )
+        );
+        break;
+      }
+
 
         await new Promise(resolve => setTimeout(resolve, pollInterval));
       }
@@ -373,13 +412,14 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
                 borderBottom: "1px solid #2d3748",
                 fontSize: "12px",
                 fontWeight: 500,
+                width: 150,
               }}
             >
               Tasks
             </TableCell>
             <TableCell
               sx={{
-                width: 120,
+                width: 150,
                 bgcolor: "#1a202c",
                 color: "#718096",
                 borderBottom: "1px solid #2d3748",
@@ -391,7 +431,7 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
             </TableCell>
             <TableCell
               sx={{
-                width: 120,
+                width: 160,
                 bgcolor: "#1a202c",
                 color: "#718096",
                 borderBottom: "1px solid #2d3748",
@@ -403,7 +443,7 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
             </TableCell>
             <TableCell
               sx={{
-                width: 150,
+                width: 120,
                 bgcolor: "#1a202c",
                 color: "#718096",
                 borderBottom: "1px solid #2d3748",
@@ -420,6 +460,7 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
                 borderBottom: "1px solid #2d3748",
                 fontSize: "12px",
                 fontWeight: 500,
+                width: 200,
               }}
             >
               Description
@@ -553,7 +594,7 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
 </Typography>
 
           <Typography variant="body2" sx={{ color: "#e2e8f0", fontSize: "13px" }}>
-  {task.sequence || ""} / {task.description || ""}
+  {task.sequence || ""} / {task.taskName || ""}
 </Typography>
 
     </Box>
@@ -594,7 +635,7 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
 
               <TableCell sx={{ p: 1, borderBottom: "1px solid #2d3748" }}>
                 <Typography variant="body2" noWrap sx={{ color: "#a0aec0", fontSize: "13px" }}>
-                  
+                    {task.description}
                 </Typography>
               </TableCell>
 
@@ -605,7 +646,7 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
               </TableCell>
 <TableCell align="right" sx={{ p: 1, borderBottom: "1px solid #2d3748" }}>
   <Typography variant="body2" sx={{ color: "#a0aec0", fontSize: "13px" }}>
-    Comming soon
+    {task.Difficulty?.eta ? task.Difficulty?.eta : "N/A"}
   </Typography>
 </TableCell>
 <TableCell align="right" sx={{ p: 1, borderBottom: "1px solid #2d3748" }}>
