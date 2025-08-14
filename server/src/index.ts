@@ -10,7 +10,7 @@ import ResultRouter from './routes/Tasks'
 import OrganizationSettings from './routes/Manage_Organization'
 import video from './routes/VideoRoutesTest'
 import Admin from './routes/AdminDashboard'
-
+//import { authenticateJWT, restrictToAdmin } from './middlewares/AuthAdmin';
 import ffmpegStatic from 'ffmpeg-static';
 import ffmpeg from 'fluent-ffmpeg';
 
@@ -42,7 +42,9 @@ const bootstrap = async () => {
 
   app.use('/col', OrganizationSettings);
   app.use('/vid', video);
-  app.use('/api/admin', Admin);
+  //app.use('/api/admin', Admin);
+  app.use('/api/admin',Admin);
+
   app.use('/contact', contactRoutes);
   app.use('/admin', adminRoutes);
 

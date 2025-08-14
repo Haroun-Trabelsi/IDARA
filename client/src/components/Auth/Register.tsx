@@ -1,6 +1,4 @@
-"use client";
-
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Box, 
   TextField, 
@@ -27,8 +25,7 @@ import {
   VisibilityOff,
   KeyboardArrowDown
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from 'contexts/AuthContext';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { validateProfile, validatePassword } from '../../utils/validation';
 import axios from 'axios';
 import debounce from 'lodash.debounce';
@@ -189,15 +186,20 @@ interface RegisterFormData {
 
 const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
-  const { register } = useAuth();
-  const [formData, setFormData] = useState<RegisterFormData>({
-    name: '',
-    surname: '',
-    organizationName: '',
-    email: '',
-    password: '',
-    teamSize: '',
-    region: ''
+  const location = useLocation();
+  const [formData, setFormData] = useState<RegisterFormData>(() => {
+    const savedData = localStorage.getItem('pendingRegistrationData');
+    const stateData = location.state?.formData;
+    const initialData = stateData || (savedData ? JSON.parse(savedData) : {});
+    return {
+      name: initialData.name || '',
+      surname: initialData.surname || '',
+      organizationName: initialData.organizationName || '',
+      email: initialData.email || '',
+      password: initialData.password || '',
+      teamSize: initialData.teamSize || '',
+      region: initialData.region || ''
+    };
   });
   const [errors, setErrors] = useState({
     name: '',
@@ -214,6 +216,13 @@ const RegisterPage: React.FC = () => {
   const [languageAnchor, setLanguageAnchor] = useState<null | HTMLElement>(null);
   const [selectedLanguage, setSelectedLanguage] = useState('EN');
   const [orgNameChecking, setOrgNameChecking] = useState(false);
+
+  useEffect(() => {
+    console.log('Formulaire initialisé avec:', formData);
+    console.log('Données de location.state:', location.state?.formData);
+    console.log('Données de localStorage (pendingRegistrationData):', localStorage.getItem('pendingRegistrationData'));
+    console.log('pendingVerificationEmail:', localStorage.getItem('pendingVerificationEmail'));
+  }, [formData, location.state]);
 
   const debouncedCheckOrganizationName = useCallback(
     debounce(async (name: string) => {
@@ -235,7 +244,7 @@ const RegisterPage: React.FC = () => {
       } finally {
         setOrgNameChecking(false);
       }
-    }, 500), // Attendre 500ms après la dernière saisie
+    }, 500),
     []
   );
 
@@ -309,11 +318,15 @@ const RegisterPage: React.FC = () => {
         mfaEnabled: false,
         status: 'AdministratorOrganization',
       };
-      await register(registrationData);
-      console.log('Registration successful, navigating to /verify-email');
-      navigate('/verify-email');
+      console.log('Envoi des données d\'inscription:', registrationData);
+      localStorage.setItem('pendingRegistrationData', JSON.stringify(formData));
+      localStorage.setItem('pendingVerificationEmail', formData.email);
+      await axios.post('http://localhost:8080/auth/register', registrationData);
+      console.log('Inscription réussie, stockage de l\'email:', formData.email);
+      console.log('Redirection vers /verify-email avec email:', formData.email);
+      navigate('/verify-email', { state: { email: formData.email, formData } });
     } catch (err: any) {
-      console.error('Registration error:', err);
+      console.error('Erreur d\'inscription:', err);
       setErrors(prev => ({
         ...prev,
         email: err.response?.data?.message.includes('email') ? err.response?.data?.message : prev.email,
@@ -772,7 +785,7 @@ const RegisterPage: React.FC = () => {
                   fontSize: '0.75rem' 
                 }}
               >
-                © 2024 ftrack. All rights reserved.
+                © 2025 ftrack. All rights reserved.
               </Typography>
             </Box>
           </Box>

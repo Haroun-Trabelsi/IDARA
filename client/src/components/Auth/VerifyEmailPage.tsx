@@ -18,9 +18,9 @@ import {
   CheckCircle as CheckCircleIcon,
   Language as LanguageIcon,
 } from "@mui/icons-material";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import axios from "utils/axios";
-import { useAuth } from "../../contexts/AuthContext"; // Adjust path as needed
+import { useAuth } from "../../contexts/AuthContext";
 
 const darkTheme = createTheme({
   palette: {
@@ -69,20 +69,95 @@ const darkTheme = createTheme({
         },
       },
     },
+    MuiTextField: {
+      styleOverrides: {
+        root: {
+          '& .MuiOutlinedInput-root': {
+            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+            borderRadius: '6px',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            transition: 'all 0.3s ease',
+            '& fieldset': {
+              border: 'none',
+            },
+            '&:hover': {
+              backgroundColor: 'rgba(255, 255, 255, 0.08)',
+              borderColor: 'rgba(66, 153, 225, 0.3)',
+            },
+            '&.Mui-focused': {
+              backgroundColor: 'rgba(255, 255, 255, 0.08)',
+              borderColor: '#4299e1',
+              boxShadow: '0 0 0 2px rgba(66, 153, 225, 0.1)',
+            },
+          },
+          '& .MuiInputBase-input': {
+            color: '#ffffff',
+            fontSize: '0.95rem',
+            padding: '14px 16px',
+          },
+          '& .MuiInputLabel-root': {
+            color: '#888888',
+            fontSize: '0.95rem',
+            '&.Mui-focused': {
+              color: '#4299e1',
+            },
+          },
+          '& .MuiFormHelperText-root': { color: '#f56565' }
+        },
+      },
+    },
   },
 });
 
 export default function VerifyEmailPage() {
   const navigate = useNavigate();
-  const { account } = useAuth();
+  const { loginWithToken } = useAuth();
+  const location = useLocation();
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
-  const email = account?.email || null;
+  const [email, setEmail] = useState<string>(location.state?.email || localStorage.getItem('pendingVerificationEmail') || "");
+  const [formData, setFormData] = useState(() => {
+    const savedData = localStorage.getItem('pendingRegistrationData');
+    const stateData = location.state?.formData;
+    const initialData = stateData || (savedData ? JSON.parse(savedData) : {});
+    return {
+      name: initialData.name || '',
+      surname: initialData.surname || '',
+      organizationName: initialData.organizationName || '',
+      email: initialData.email || '',
+      password: initialData.password || '',
+      teamSize: initialData.teamSize || '',
+      region: initialData.region || ''
+    };
+  });
   const [timer, setTimer] = useState(30);
   const [canResend, setCanResend] = useState(false);
   const [languageAnchor, setLanguageAnchor] = useState<null | HTMLElement>(null);
   const [selectedLanguage, setSelectedLanguage] = useState("EN");
+
+  useEffect(() => {
+    console.log('Email initial dans VerifyEmailPage:', email);
+    console.log('FormData initial dans VerifyEmailPage:', formData);
+    console.log('Données de location.state:', location.state);
+    console.log('Données de localStorage (pendingRegistrationData):', localStorage.getItem('pendingRegistrationData'));
+    console.log('pendingVerificationEmail:', localStorage.getItem('pendingVerificationEmail'));
+    if (location.state?.email) {
+      console.log('Email mis à jour depuis location.state:', location.state.email);
+      setEmail(location.state.email);
+      localStorage.setItem('pendingVerificationEmail', location.state.email);
+    }
+    if (location.state?.formData) {
+      console.log('FormData mis à jour depuis location.state:', location.state.formData);
+      setFormData(location.state.formData);
+      localStorage.setItem('pendingRegistrationData', JSON.stringify(location.state.formData));
+    }
+    if (!email) {
+      console.log('Aucun email trouvé, redirection vers /register');
+      setMessage("No email provided. Please register again.");
+      setTimeout(() => navigate('/register', { state: { formData } }), 3000);
+    }
+  }, [email, location.state, navigate, formData]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
@@ -100,8 +175,13 @@ export default function VerifyEmailPage() {
   }, [timer, canResend]);
 
   const handleVerifyEmail = async () => {
-    if (!verificationCode || verificationCode.length !== 6 || !email) {
+    if (!verificationCode || verificationCode.length !== 6) {
       setMessage("Please enter a valid 6-digit verification code.");
+      return;
+    }
+    if (!email) {
+      setMessage("No email provided. Please register again.");
+      setTimeout(() => navigate('/register', { state: { formData } }), 3000);
       return;
     }
 
@@ -118,9 +198,10 @@ export default function VerifyEmailPage() {
           headers: { "Content-Type": "application/json" },
         }
       );
-      setMessage(
-        response.data.message || "Email verified successfully!"
-      );
+      setMessage(response.data.message || "Email verified successfully!");
+      localStorage.removeItem('pendingVerificationEmail');
+      localStorage.removeItem('pendingRegistrationData');
+      loginWithToken(response.data.token, response.data.data);
       setTimeout(() => navigate("/"), 3000);
     } catch (err: any) {
       console.error("Verification error:", err.response?.data, err.response?.status);
@@ -131,7 +212,11 @@ export default function VerifyEmailPage() {
   };
 
   const handleResendVerification = async () => {
-    if (!email || loading) return;
+    if (!email || loading) {
+      setMessage("No email provided. Please register again.");
+      setTimeout(() => navigate('/register', { state: { formData } }), 3000);
+      return;
+    }
 
     setLoading(true);
     setCanResend(false);
@@ -158,7 +243,9 @@ export default function VerifyEmailPage() {
   };
 
   const handleBackToRegister = () => {
-    navigate("/register");
+    console.log('Retour à /register avec formData:', formData);
+    localStorage.removeItem('pendingVerificationEmail');
+    navigate("/register", { state: { formData } });
   };
 
   const handleLanguageClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -327,28 +414,7 @@ export default function VerifyEmailPage() {
               if (value.length <= 6) setVerificationCode(value);
             }}
             inputProps={{ maxLength: 6 }}
-            sx={{
-              mb: 3,
-              "& .MuiOutlinedInput-root": {
-                bgcolor: "rgba(255, 255, 255, 0.05)",
-                borderRadius: "6px",
-                "& fieldset": {
-                  borderColor: "rgba(255, 255, 255, 0.2)",
-                },
-                "&:hover fieldset": {
-                  borderColor: "rgba(255, 255, 255, 0.3)",
-                },
-                "&.Mui-focused fieldset": {
-                  borderColor: "#4299e1",
-                },
-              },
-              "& .MuiInputLabel-root": {
-                color: "#b3b3b3",
-              },
-              "& .MuiInputBase-input": {
-                color: "#ffffff",
-              },
-            }}
+            sx={{ mb: 3 }}
           />
 
           <Typography
@@ -433,7 +499,6 @@ export default function VerifyEmailPage() {
             Back to Register
           </Button>
 
-          {/* Footer */}
           <Box sx={{ textAlign: "center" }}>
             <Typography
               variant="body2"

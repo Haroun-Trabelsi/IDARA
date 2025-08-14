@@ -47,6 +47,7 @@ interface AuthContextType {
   token: string | null;
   isLoggedIn: boolean;
   login: (data: LoginData) => Promise<void>;
+  loginWithToken: (token: string, accountData: Account) => void;
   register: (data: FormData & { role: 'user' | 'admin'; canInvite: boolean; isVerified: boolean; mfaEnabled: boolean; status: string }) => Promise<void>;
   logout: () => void;
   updateAccount: (updatedAccount: Account) => void;
@@ -56,12 +57,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const initialToken = localStorage.getItem('token');
-const initialAccount = initialToken ? (JSON.parse(localStorage.getItem('account') || '{}') as Account) : null;
-
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [account, setAccount] = useState<Account | null>(initialAccount);
-  const [token, setToken] = useState<string | null>(initialToken);
+  const [account, setAccount] = useState<Account | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -70,20 +68,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (savedToken && savedAccount) {
       try {
         const parsedAccount = JSON.parse(savedAccount) as Account;
-        setToken(savedToken);
-        setAccount(parsedAccount);
+        // Ne restaurer l'état que si l'utilisateur est vérifié
+        if (parsedAccount.isVerified) {
+          setToken(savedToken);
+          setAccount(parsedAccount);
+          axios.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;
+        } else {
+          console.log('Utilisateur non vérifié, suppression des données locales');
+          localStorage.removeItem('token');
+          localStorage.removeItem('account');
+        }
       } catch (err) {
         console.error('Erreur lors de la restauration de l\'account:', err);
         localStorage.removeItem('token');
         localStorage.removeItem('account');
-        setToken(null);
-        setAccount(null);
       }
     }
     setIsLoading(false);
   }, []);
 
-  const isLoggedIn = !!account && !!token;
+  const isLoggedIn = !!account && !!token && account.isVerified;
 
   const login = async (data: LoginData) => {
     try {
@@ -100,36 +104,36 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         teamSize: accountData.teamSize || '',
         region: accountData.region || '',
       };
+      if (!fullAccount.isVerified) {
+        throw new Error('Account not verified');
+      }
       setToken(token);
       setAccount(fullAccount);
       localStorage.setItem('token', token);
       localStorage.setItem('account', JSON.stringify(fullAccount));
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     } catch (error: any) {
       console.error('Erreur lors de la connexion:', error);
       throw error;
     }
   };
 
+  const loginWithToken = (newToken: string, accountData: Account) => {
+    if (!accountData.isVerified) {
+      console.error('Tentative de connexion avec un compte non vérifié');
+      return;
+    }
+    setToken(newToken);
+    setAccount(accountData);
+    localStorage.setItem('token', newToken);
+    localStorage.setItem('account', JSON.stringify(accountData));
+    axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+  };
+
   const register = async (data: FormData & { role: 'user' | 'admin'; canInvite: boolean; isVerified: boolean; mfaEnabled: boolean; status: string }) => {
     try {
-      const response = await axios.post('/auth/register', data);
-      const { token, data: accountData } = response.data;
-      const fullAccount: Account = {
-        ...accountData,
-        email: data.email,
-        role: data.role || 'user',
-        isVerified: data.isVerified || false,
-        mfaEnabled: data.mfaEnabled || false,
-        organizationName: data.organizationName || '',
-        canInvite: data.canInvite || false,
-        mustCompleteProfile: false,
-        teamSize: data.teamSize || '',
-        region: data.region || '',
-      };
-      setToken(token);
-      setAccount(fullAccount);
-      localStorage.setItem('token', token);
-      localStorage.setItem('account', JSON.stringify(fullAccount));
+      await axios.post('/auth/register', data);
+      // Ne pas définir token ou account ici, attendre la vérification
     } catch (error: any) {
       console.error('Erreur lors de l\'inscription:', error);
       throw error;
@@ -141,6 +145,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setAccount(null);
     localStorage.removeItem('token');
     localStorage.removeItem('account');
+    delete axios.defaults.headers.common['Authorization'];
   };
 
   const updateAccount = (updatedAccount: Account) => {
@@ -153,7 +158,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   return (
-    <AuthContext.Provider value={{ account, token, isLoggedIn, login, register, logout, updateAccount, checkAuth, isLoading }}>
+    <AuthContext.Provider value={{ account, token, isLoggedIn, login, loginWithToken, register, logout, updateAccount, checkAuth, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

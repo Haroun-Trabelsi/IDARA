@@ -2,6 +2,7 @@ import { type RequestHandler, type Request, type Response, type NextFunction } f
 import Account from '../../models/Account';
 import crypto from 'crypto';
 import { sendVerificationEmail } from '../../utils/nodemailer';
+import jwt from '../../utils/jwt';
 
 // Interface pour les erreurs personnalisées
 interface CustomError {
@@ -73,7 +74,16 @@ const verify: RequestHandler<{ token?: string }, any, VerifyBody, {}> = async (
     account.verificationCodeExpires = undefined;
     await account.save();
 
-    res.status(200).json({ message: 'Email verified successfully!' });
+    // Générer un token JWT après vérification
+    const tokenJwt = jwt.signToken({ uid: account._id, role: account.role });
+
+    const { password: _password, verificationCode: _code, verificationCodeExpires: _expires, ...data } = account.toObject();
+
+    res.status(200).json({ 
+      message: 'Email verified successfully!',
+      data: { ...data, email },
+      token: tokenJwt,
+    });
   } catch (error: any) {
     console.log('Verification error:', error);
     return next({
@@ -111,7 +121,7 @@ const resendVerification: RequestHandler<{}, any, ResendBody, {}> = async (
     }
 
     const verificationCode = crypto.randomInt(100000, 999999).toString();
-    const verificationCodeExpires = new Date(Date.now() + 30 * 1000);
+    const verificationCodeExpires = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
     user.verificationCode = verificationCode;
     user.verificationCodeExpires = verificationCodeExpires;
     await user.save();

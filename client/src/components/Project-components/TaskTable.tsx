@@ -20,9 +20,7 @@ import {
   DialogContent,
   CircularProgress,
 } from "@mui/material"
-import {
-  PlayCircleOutline,
-} from "@mui/icons-material"
+import { toFraction } from "../../utils/fractionUtils"; 
 import React from "react"
 import { useProject } from '../../contexts/ProjectContext';
 
@@ -121,23 +119,23 @@ async function loadDifficultiesForTasks(tasksToLoad: Task[]) {
   setTasks(updatedTasks);
 }
 
-const [hasLoadedDifficulties, setHasLoadedDifficulties] = useState(false);
-const [isVideoLoading, setIsVideoLoading] = useState(false);
-
-
-useEffect(() => {
-  if (!hasLoadedDifficulties && tasks.length > 0) {
-    loadDifficultiesForTasks(tasks);
-    setHasLoadedDifficulties(true);
-  }
-}, [tasks, hasLoadedDifficulties]);
-
 const { selectedProject } = useProject();
 const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
 const [videoModalOpen, setVideoModalOpen] = useState(false);
 const [videoOptions, setVideoOptions] = useState<any[]>([]);
 const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
 
+useEffect(() => {
+  if (!selectedProject?.name || tasks.length === 0) return;
+
+  loadDifficultiesForTasks(tasks);
+}, [selectedProject?.name, tasks.length]); // ✅ Only re-run when project name or task count changes
+
+
+const formatDays = (hours: number) => {
+  const days = Number((hours / 8).toFixed(1));
+  return toFraction(days); // will show as "1/2", "5/8", etc.
+};
 const toggleTaskSelection = (taskId: string) => {
   setSelectedTasks(prev => {
     const updated = new Set(prev);
@@ -146,8 +144,8 @@ const toggleTaskSelection = (taskId: string) => {
   });
 };
 const handleOpenVideoSelector = async (taskId: string) => {
-  setIsVideoLoading(true); // Start loading
-  setVideoModalOpen(true); // Open modal early (optional, or wait below)
+  setActiveTaskId(taskId);
+  setVideoModalOpen(true);
 
   try {
     const res = await fetch(`http://localhost:8080/api/task/${taskId}/components`);
@@ -165,14 +163,14 @@ const handleOpenVideoSelector = async (taskId: string) => {
     setVideoOptions(formattedVideos);
   } catch (err) {
     console.error("Failed to load videos", err);
-  } finally {
-    setIsVideoLoading(false); // Done loading
   }
 };
 
 
 
 const handleVideoSelect = (url: string) => {
+  console.log(url);
+  console.log("Selected task ID:", activeTaskId);
   setTasks((prev: Task[] | undefined) =>
     (prev || []).map((task: Task) =>
       task.id === activeTaskId ? { ...task, videos: [{ value: url }] } : task
@@ -220,66 +218,54 @@ const handleVideoSelect = (url: string) => {
   }
 
   const flatTasks = flattenTasks(tasks)
-  const selectedTaskObjects = flatTasks.filter(task => selectedTasks.has(task.id));
 const [videoUrl, setVideoUrl] = React.useState<string | null>(null);
 const [open, setOpen] = React.useState(false);
 const [loadingTaskId, setLoadingTaskId] = useState<string | null>(null);
 const [queuedTaskIds, setQueuedTaskIds] = useState<Set<string>>(new Set());
-const [taskJobIds, setTaskJobIds] = useState<Record<string, string>>({});
-
-const cancelJob = async (jobId: string) => {
-  try {
-    const res = await fetch(`http://localhost:8089/cancel/${jobId}`, {
-      method: "POST",
-    });
-    const data = await res.json();
-    if (data.status === "cancelled") {
-      alert("Processing cancelled.");
-      // Optional: update UI to reflect cancellation
-    } else {
-      alert("Could not cancel: " + data.message);
-    }
-  } catch (err) {
-    console.error("Cancellation failed:", err);
-  }
-};
 
 
-const handleOpenVideo = (url: string) => {
-  setVideoUrl(url);
-  setOpen(true);
-};
+
 const handleCloseVideo = () => {
   setOpen(false);
   setVideoUrl(null);
 };
 
 async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
-  // Set queued tasks (all at first)
-  const queued = new Set(selectedTaskObjects.map(task => task.id));
-  setQueuedTaskIds(queued);
+  // Initialize queue state with selected tasks IDs
+  setQueuedTaskIds(new Set(selectedTaskObjects.map(task => task.id)));
 
   for (const task of selectedTaskObjects) {
-    // Remove current task from queue and mark as loading
-    queued.delete(task.id);
-    setQueuedTaskIds(new Set(queued));
+
+
+    setQueuedTaskIds(prev => {
+      const newQueued = new Set(prev);
+      newQueued.delete(task.id);
+      return newQueued;
+    });
+
     setLoadingTaskId(task.id);
 
     const videoUrl = task.videos?.[0]?.value;
     if (!videoUrl) {
-      alert(`No video assigned to task ${task.id}.`);
+      console.warn(`No video assigned to task ${task.id}`);
+      setLoadingTaskId(null);
       continue;
     }
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      const videoResponse = await fetch(videoUrl.value);
+      const videoResponse = await fetch(videoUrl);
       if (!videoResponse.ok) throw new Error(`Failed to fetch video for task ${task.id}`);
       const blob = await videoResponse.blob();
 
+      const sizeMB = blob.size / (1024 * 1024);
+      console.log(`Video size for task ${task.id}: ${sizeMB.toFixed(2)} MB`);
+
       const formData = new FormData();
       formData.append("file", blob, `${task.id}.mp4`);
-      formData.append("original_filename", `Sequence - ${task.sequence} Task - ${task.description} Project Name - ${project}.mp4`);
+      formData.append(
+        "original_filename",
+        `Sequence - ${task.sequence} Task - ${task.description} Project Name - ${project}.mp4`
+      );
 
       const uploadResponse = await fetch("http://localhost:8089/upload_video", {
         method: "POST",
@@ -288,13 +274,25 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
 
       if (!uploadResponse.ok) throw new Error(`Upload failed with status ${uploadResponse.status}`);
       const { job_id } = await uploadResponse.json();
-      setTaskJobIds(prev => ({ ...prev, [task.id]: job_id }));
 
       const pollUrl = `http://localhost:8089/result/${job_id}`;
-      const maxAttempts = 30;
+      const baseInterval = 2000; // ms
+      const intervalPerMB = 200; // ms extra per MB
+      const pollInterval = baseInterval + sizeMB * intervalPerMB;
+
+      const baseAttempts = 30;
+      const extraAttemptsPerMB = 5;
+      const maxAttempts = Math.ceil(baseAttempts + sizeMB * extraAttemptsPerMB);
+
       let resultReceived = false;
 
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        // Skip first 5 polling attempts with wait only
+        if (attempt < 5) {
+          await new Promise(resolve => setTimeout(resolve, pollInterval));
+          continue;
+        }
+
         const res = await fetch(pollUrl);
         const data = await res.json();
 
@@ -308,11 +306,11 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
           break;
         }
 
-        await new Promise(resolve => setTimeout(resolve, 1000 * Math.min(attempt + 1, 5)));
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
       }
 
       if (!resultReceived) {
-        alert(`Task ${task.id} timed out.`);
+        alert(`Task ${task.id} timed out after ${maxAttempts} attempts.`);
       }
     } catch (err) {
       console.error(`Error processing task ${task.id}:`, err);
@@ -322,9 +320,10 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
     }
   }
 
-  // Clear queue after all tasks
+  setSelectedTasks(new Set());
   setQueuedTaskIds(new Set());
 }
+
 
 
 
@@ -440,7 +439,7 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
             <TableCell
               align="right"
               sx={{
-                width: 100,
+                width: 160,
                 bgcolor: "#1a202c",
                 color: "#718096",
                 borderBottom: "1px solid #2d3748",
@@ -448,7 +447,7 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
                 fontWeight: 500,
               }}
             >
-              Bid hours
+            Estimated Bid Hours
             </TableCell>
             <TableCell
               align="right"
@@ -461,7 +460,33 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
                 fontWeight: 500,
               }}
             >
-              +/- hours
+              Bid Hours
+            </TableCell>
+            <TableCell
+              align="right"
+              sx={{
+                width: 100,
+                bgcolor: "#1a202c",
+                color: "#718096",
+                borderBottom: "1px solid #2d3748",
+                fontSize: "12px",
+                fontWeight: 500,
+              }}
+            >
+              Bid Days
+            </TableCell>
+            <TableCell
+              align="right"
+              sx={{
+                width: 100,
+                bgcolor: "#1a202c",
+                color: "#718096",
+                borderBottom: "1px solid #2d3748",
+                fontSize: "12px",
+                fontWeight: 500,
+              }}
+            >
+              +/- Days
             </TableCell>
             <TableCell
               align="center"
@@ -512,30 +537,25 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
 
          <TableCell sx={{ p: 1, borderBottom: "1px solid #2d3748" }}>
   <Box sx={{ display: "flex", alignItems: "center", pl: task.level * 2.5 }}>
-    {isVideoLoading && activeTaskId === task.id ? (
-      // Show spinner if videos for this task are loading
-      <CircularProgress size={20} sx={{ mr: 1 }} />
-    ) : task.videos && task.videos.length > 0 ? (
-      <IconButton
-        size="small"
-        onClick={() => handleOpenVideo(task.videos[0].value)}
-        sx={{ color: "#63b3ed", p: 0.5 }}
-        aria-label="play video"
-      >
-        <PlayCircleOutline fontSize="small" />
-      </IconButton>
-    ) : (
-      <Typography variant="body2" sx={{ color: "#a0aec0", fontSize: "13px" }}>
-        No video
-      </Typography>
-    )}
     <Box
       onClick={() => handleOpenVideoSelector(task.id)}
       sx={{ ml: 1, cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
     >
-      <Typography variant="body2" sx={{ color: "#e2e8f0", fontSize: "13px" }}>
-        {task.sequence || ""} / {task.description || ""} / {task.icon || ''}
-      </Typography>
+      <Typography
+  variant="body2"
+  sx={{
+    color: task.videos?.length > 0 ? "#16a34a" : "#ff0000ff", // green if selected, yellow if not
+    fontSize: "13px",
+    fontWeight: 500,
+  }}
+>
+  {task.videos?.length > 0 ? "Video Selected!" : "Select Video"}
+</Typography>
+
+          <Typography variant="body2" sx={{ color: "#e2e8f0", fontSize: "13px" }}>
+  {task.sequence || ""} / {task.description || ""}
+</Typography>
+
     </Box>
   </Box>
 </TableCell>
@@ -583,34 +603,42 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
                   {task.dueDate || ""}
                 </Typography>
               </TableCell>
+<TableCell align="right" sx={{ p: 1, borderBottom: "1px solid #2d3748" }}>
+  <Typography variant="body2" sx={{ color: "#a0aec0", fontSize: "13px" }}>
+    Comming soon
+  </Typography>
+</TableCell>
+<TableCell align="right" sx={{ p: 1, borderBottom: "1px solid #2d3748" }}>
+  <Typography variant="body2" sx={{ color: "#a0aec0", fontSize: "13px" }}>
+    { task.bidHours.toFixed(2) } 
+  </Typography>
+</TableCell>
+ <TableCell align="right" sx={{ p: 1, borderBottom: "1px solid #2d3748" }}>
+  <Typography variant="body2" sx={{ color: "#a0aec0", fontSize: "13px" }}>
+    { formatDays(task.bidHours)} 
+  </Typography>
+</TableCell>
 
-              <TableCell align="right" sx={{ p: 1, borderBottom: "1px solid #2d3748" }}>
-                <Typography variant="body2" sx={{ color: "#a0aec0", fontSize: "13px" }}>
-                  {task.bidHours.toFixed(2)}
-                </Typography>
-              </TableCell>
+<TableCell align="right" sx={{ p: 1, borderBottom: "1px solid #2d3748" }}>
+  <Typography variant="body2" sx={{ color: "#a0aec0", fontSize: "13px" }}>
+   { formatDays(task.actualHours)}
+  </Typography>
+</TableCell>
 
-              <TableCell align="right" sx={{ p: 1, borderBottom: "1px solid #2d3748" }}>
-                <Typography variant="body2" sx={{ color: "#a0aec0", fontSize: "13px" }}>
-                  {task.actualHours.toFixed(2)}
-                </Typography>
-              </TableCell>
 <TableCell>
   {loadingTaskId === task.id ? (
     <Box sx={{ display: 'flex', alignItems: 'center' }}>
       <CircularProgress size={20} sx={{ mr: 1 }} />
       <Typography variant="body2" color="textSecondary">Processing...</Typography>
-      <Button
-        color="error"
-        variant="outlined"
-        onClick={() => cancelJob(taskJobIds[task.id])}
-        disabled={!taskJobIds[task.id]}
-      >
-        Cancel
-      </Button>
+      
     </Box>
   ) : queuedTaskIds.has(task.id) ? (
-    <Typography variant="body2" color="textSecondary">Queued ..</Typography>
+    <Box display="flex" alignItems="center" flexWrap="wrap" gap={1}>
+  <Typography variant="body2" color="textSecondary">
+    Queued 
+  </Typography>
+
+</Box>
   ) : task.Difficulty ? (
     <Box>
       <Typography variant="body2" fontWeight="bold">
@@ -651,21 +679,43 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
 </Dialog>
 
     </TableContainer>
-    <Box
+ <Box
   sx={{
     position: "fixed",
     bottom: 24,
     left: "50%",
     transform: "translateX(-50%)",
     zIndex: 10,
+    display: "flex",
+    gap: 2, // spacing between buttons
   }}
 >
+  <Button
+    variant="outlined"
+    color="secondary"
+    size="medium"
+    disabled={selectedTasks.size === 0}
+    onClick={() => setSelectedTasks(new Set())}
+    sx={{
+      px: 4,
+      py: 1.5,
+      fontSize: "14px",
+      borderRadius: 2,
+      boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.10)",
+    }}
+  >
+    Clear Selection
+  </Button>
+
   <Button
     variant="contained"
     color="primary"
     size="medium"
     disabled={selectedTasks.size === 0}
-    onClick={() => sendToFunction(selectedTaskObjects)}
+    onClick={() => {
+      const selectedTaskObjects = tasks.filter(task => selectedTasks.has(task.id));
+      sendToFunction(selectedTaskObjects);
+    }}
     sx={{
       px: 4,
       py: 1.5,
@@ -677,6 +727,7 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
     Estimate Selected ({selectedTasks.size})
   </Button>
 </Box>
+
 <Dialog open={videoModalOpen} onClose={() => setVideoModalOpen(false)} maxWidth="md" fullWidth>
   <DialogContent>
     <Typography variant="h6" sx={{ mb: 2, color: "#e2e8f0" }}>
@@ -723,7 +774,7 @@ async function sendToFunction(selectedTaskObjects: Task[]): Promise<void> {
         <Button
           size="small"
           variant="outlined"
-          onClick={() => handleVideoSelect(video)}
+          onClick={() => handleVideoSelect(video.value)}
         >
           Select
         </Button>

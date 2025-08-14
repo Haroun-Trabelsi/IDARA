@@ -32,7 +32,7 @@ const login: RequestHandler = async (req, res, next) => {
     }
 
     // Verify password hash
-    const passOk = crypt.validate(password, account.password)
+    const passOk =await crypt.validate(password, account.password)
 
     if (!passOk) {
       return next({
