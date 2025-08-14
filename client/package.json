@@ -45,12 +45,14 @@
     "@mui/icons-material": "^7.1.1",
     "@mui/material": "^7.1.1",
     "@tailwindcss/cli": "^4.1.8",
+    "@types/lodash": "^4.17.20",
     "@types/recharts": "^1.8.29",
     "antd": "^5.26.6",
-    "axios": "^1.8.4",
+    "axios": "^1.11.0",
     "dotenv": "^16.5.0",
     "framer-motion": "^12.23.9",
     "ftrack": "^1.0.3",
+    "lodash": "^4.17.21",
     "lucide-react": "^0.511.0",
     "mui": "^0.0.1",
     "next-themes": "^0.4.6",
@@ -62,6 +64,7 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
+    "@types/lodash.debounce": "^4.0.9",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.0.4",
     "autoprefixer": "^10.4.21",

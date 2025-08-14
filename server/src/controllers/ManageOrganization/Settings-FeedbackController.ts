@@ -1,87 +1,107 @@
-// controllers/ManageOrganization/Settings-FeedbackController.ts
 import { type RequestHandler } from 'express';
 import Account from '../../models/Account';
 import Feedback from '../../models/Feedback';
 
 export const updateOrganizationSettings: RequestHandler = async (req, res, next) => {
-    try {
-      const { name, organizationSize } = req.body;
-      console.log('Requête reçue pour /col/organization:', { name, organizationSize });
-      console.log('req.auth:', req.auth);
-  
-      if (!req.auth?.uid) {
-        console.log('Échec : req.auth.uid manquant');
-        return next({
-          statusCode: 401,
-          message: 'Authentification requise.',
-        });
-      }
-  
-      const account = await Account.findById(req.auth.uid);
-      if (!account) {
-        console.log('Échec : utilisateur non trouvé pour UID:', req.auth.uid);
-        return next({
-          statusCode: 401,
-          message: 'Utilisateur non trouvé.',
-        });
-      }
-  
-      // Mettre à jour les champs de l'utilisateur authentifié
-      account.organizationName = name || account.organizationName;
-      account.organizationSize = organizationSize || account.organizationSize;
-      await account.save();
-  
-      // Mettre à jour tous les comptes de l'organisation
-      await Account.updateMany(
-        { organizationName: account.organizationName }, // Assurez-vous que cette condition correspond à votre logique
-        { $set: { organizationName: name, organizationSize: organizationSize } }
-      );
-  
-      console.log('Paramètres de l\'organisation mis à jour:', account);
-      res.status(200).json({
-        message: 'Paramètres de l\'organisation mis à jour avec succès.',
-        data: { name: account.organizationName, organizationSize: account.organizationSize },
-      });
-    } catch (error) {
-      console.error('Erreur dans updateOrganizationSettings:', error);
-      next(error);
-    }
-  };
-  
-  export const deleteOrganization: RequestHandler = async (req, res, next) => {
-    try {
-      if (!req.auth?.uid) {
-        console.log('Échec : req.auth.uid manquant');
-        return next({
-          statusCode: 401,
-          message: 'Authentification requise.',
-        });
-      }
-  
-      const account = await Account.findById(req.auth.uid);
-      if (!account) {
-        console.log('Échec : utilisateur non trouvé pour UID:', req.auth.uid);
-        return next({
-          statusCode: 401,
-          message: 'Utilisateur non trouvé.',
-        });
-      }
-  
-      await Account.deleteMany({ organizationName: account.organizationName });
-  
+  try {
+    const { organizationName, teamSize, region } = req.body;
+    console.log('Requête reçue pour /col/organization:', { organizationName, teamSize, region });
+    console.log('req.auth:', req.auth);
 
-  
-      console.log('Organisation supprimée avec succès pour:', account.organizationName);
-      res.status(200).json({
-        message: 'Organisation supprimée avec succès.',
+    if (!req.auth?.uid) {
+      console.log('Échec : req.auth.uid manquant');
+      return next({
+        statusCode: 401,
+        message: 'Authentification requise.',
       });
-    } catch (error) {
-      console.error('Erreur dans deleteOrganization:', error);
-      next(error);
     }
-  };
-  
 
+    const account = await Account.findById(req.auth.uid);
+    if (!account) {
+      console.log('Échec : utilisateur non trouvé pour UID:', req.auth.uid);
+      return next({
+        statusCode: 401,
+        message: 'Utilisateur non trouvé.',
+      });
+    }
+
+    // Vérifier si l'utilisateur est AdministratorOrganization
+    if (account.status !== 'AdministratorOrganization') {
+      console.log('Échec : utilisateur non autorisé, status:', account.status);
+      return next({
+        statusCode: 403,
+        message: 'Seul l\'administrateur de l\'organisation peut modifier ces informations.',
+      });
+    }
+
+    // Mettre à jour les champs de l'utilisateur authentifié
+    account.organizationName = organizationName || account.organizationName;
+    account.teamSize = teamSize || account.teamSize;
+    account.region = region || account.region;
+    await account.save();
+
+    // Mettre à jour tous les comptes de l'organisation (ceux ayant invitedBy = UID de l'admin)
+    await Account.updateMany(
+      { invitedBy: req.auth.uid },
+      { $set: { organizationName, teamSize, region } }
+    );
+
+    console.log('Paramètres de l\'organisation mis à jour:', account);
+    res.status(200).json({
+      message: 'Paramètres de l\'organisation mis à jour avec succès.',
+      data: { organizationName: account.organizationName, teamSize: account.teamSize, region: account.region },
+    });
+  } catch (error) {
+    console.error('Erreur dans updateOrganizationSettings:', error);
+    next(error);
+  }
+};
+
+export const deleteOrganization: RequestHandler = async (req, res, next) => {
+  try {
+    if (!req.auth?.uid) {
+      console.log('Échec : req.auth.uid manquant');
+      return next({
+        statusCode: 401,
+        message: 'Authentification requise.',
+      });
+    }
+
+    const account = await Account.findById(req.auth.uid);
+    if (!account) {
+      console.log('Échec : utilisateur non trouvé pour UID:', req.auth.uid);
+      return next({
+        statusCode: 401,
+        message: 'Utilisateur non trouvé.',
+      });
+    }
+
+    // Vérifier si l'utilisateur est AdministratorOrganization
+    if (account.status !== 'AdministratorOrganization') {
+      console.log('Échec : utilisateur non autorisé, status:', account.status);
+      return next({
+        statusCode: 403,
+        message: 'Seul l\'administrateur de l\'organisation peut supprimer l\'organisation.',
+      });
+    }
+
+    // Supprimer tous les comptes où invitedBy = UID de l'admin, ainsi que le compte de l'admin
+    await Account.deleteMany({
+      $or: [
+        { invitedBy: req.auth.uid },
+        { _id: req.auth.uid },
+      ],
+    });
+
+    console.log('Organisation supprimée avec succès pour:', account.organizationName);
+    res.status(200).json({
+      message: 'Organisation supprimée avec succès.',
+    });
+  } catch (error) {
+    console.error('Erreur dans deleteOrganization:', error);
+    next(error);
+  }
+};
 
 export const submitFeedback: RequestHandler = async (req, res, next) => {
   try {
@@ -123,7 +143,7 @@ export const submitFeedback: RequestHandler = async (req, res, next) => {
     });
     await feedback.save();
 
-    // Optionnel : Mettre à jour les champs dans Account
+    // Mettre à jour les champs dans Account
     account.rating = Number(rating);
     account.feedbackText = feedbackText || undefined;
     account.featureSuggestions = suggestFeatures && Array.isArray(featureSuggestions) ? featureSuggestions.filter((s: string) => s.trim()) : [];
@@ -139,36 +159,36 @@ export const submitFeedback: RequestHandler = async (req, res, next) => {
   }
 };
 
-
-
 export const getOrganizationSettings: RequestHandler = async (req, res, next) => {
-    try {
-      if (!req.auth?.uid) {
-        console.log('Échec : req.auth.uid manquant');
-        return next({
-          statusCode: 401,
-          message: 'Authentification requise.',
-        });
-      }
-
-      const account = await Account.findById(req.auth.uid);
-      if (!account) {
-        console.log('Échec : utilisateur non trouvé pour UID:', req.auth.uid);
-        return next({
-          statusCode: 401,
-          message: 'Utilisateur non trouvé.',
-        });
-      }
-
-      res.status(200).json({
-        message: 'Données de l\'organisation récupérées avec succès.',
-        data: {
-          name: account.organizationName,
-          organizationSize: account.organizationSize,
-          id: account._id, // ou un autre identifiant unique si nécessaire
-        },
+  try {
+    if (!req.auth?.uid) {
+      console.log('Échec : req.auth.uid manquant');
+      return next({
+        statusCode: 401,
+        message: 'Authentification requise.',
       });
-    } catch (error) {
-      console.error('Erreur dans getOrganizationSettings:', error);
-      next(error);
-    }};
+    }
+
+    const account = await Account.findById(req.auth.uid);
+    if (!account) {
+      console.log('Échec : utilisateur non trouvé pour UID:', req.auth.uid);
+      return next({
+        statusCode: 401,
+        message: 'Utilisateur non trouvé.',
+      });
+    }
+
+    res.status(200).json({
+      message: 'Données de l\'organisation récupérées avec succès.',
+      data: {
+        organizationName: account.organizationName,
+        teamSize: account.teamSize,
+        region: account.region,
+        id: account._id,
+      },
+    });
+  } catch (error) {
+    console.error('Erreur dans getOrganizationSettings:', error);
+    next(error);
+  }
+};

@@ -32,7 +32,7 @@ const login: RequestHandler = async (req, res, next) => {
     }
 
     // Verify password hash
-    const passOk = crypt.validate(password, account.password)
+    const passOk =await crypt.validate(password, account.password)
 
     if (!passOk) {
       return next({
@@ -40,6 +40,11 @@ const login: RequestHandler = async (req, res, next) => {
         message: 'Mauvais identifiants',
       })
     }
+
+    // Mise à jour de lastConnexion à la date actuelle
+    account.lastConnexion = new Date();
+    await account.save();
+    console.log(`lastConnexion mise à jour pour l'utilisateur ${account.email}: ${account.lastConnexion}`); // Log pour débogage
 
     // Generate access token
     const token = jwt.signToken({ uid: account._id, role: account.role })

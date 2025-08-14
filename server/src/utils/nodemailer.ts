@@ -1,8 +1,9 @@
+// utils/nodemailer.ts
 import nodemailer from 'nodemailer';
 import fs from 'fs';
 import path from 'path';
 
-const transporter = nodemailer.createTransport({
+export const transporter = nodemailer.createTransport({ // Ajout de 'export'
   service: 'gmail',
   auth: {
     user: process.env.EMAIL_USER,
@@ -43,7 +44,7 @@ export const sendVerificationEmail = async (email: string, name: string, code: s
 
 export const sendInvitationEmail = async (email: string, verificationLink: string, tempPassword: string, organizationName: string) => {
   const template = getEmailTemplate('invitationEmail');
-  const loginUrl = `${process.env.APP_URL}/col/verify-invitation/${verificationLink}`; // Utilise verify-invite
+  const loginUrl = `${process.env.APP_URL}/col/verify-invitation/${verificationLink}`;
   const html = template
     .replace('{{greeting}}', `Hello,`)
     .replace('{{message}}', `You have been invited to join the ${organizationName} team. Your temporary password is: <strong>${tempPassword}</strong>. Click the button below to accept the invitation:`)

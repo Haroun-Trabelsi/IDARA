@@ -1,8 +1,22 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Box, TableRow, TableCell, Typography, IconButton, TextField, Button } from "@mui/material";
-import { Edit, GetApp } from "@mui/icons-material";
+import {
+  Box,
+  Typography,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Button,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+} from "@mui/material";
+import { Edit } from "@mui/icons-material";
 import Sidebar from "./Sidebar";
 import SettingsPage from "./SettingsPage";
 import CollaboratorPage from "./CollaboratorPage";
@@ -10,21 +24,43 @@ import FeedbackPage from "./FeedbackPage";
 import { useAuth } from "contexts/AuthContext";
 import axios from "utils/axios";
 
-interface Member {
+export interface Member {
   _id: string;
   name: string;
   surname?: string;
   email: string;
-  status: "pending" | "accepted" | "expired | Administrator";
+  status: "pending" | "accepted" | "expired" | "AdministratorOrganization";
   invitedDate?: string;
   canInvite?: boolean;
   invitedBy?: string;
 }
 
+const teamSizeOptions = [
+  { value: "1", label: "1" },
+  { value: "2-10", label: "2-10" },
+  { value: "11-20", label: "11-20" },
+  { value: "21-50", label: "21-50" },
+  { value: "51-100", label: "51-100" },
+  { value: "101-200", label: "101-200" },
+  { value: "201-500", label: "201-500" },
+  { value: "500+", label: "500+" },
+];
+
+const regionOptions = [
+  { value: "Europe", label: "Europe" },
+  { value: "US East", label: "US East" },
+  { value: "US West", label: "US West" },
+  { value: "South America", label: "South America" },
+  { value: "East Asia", label: "East Asia" },
+  { value: "Australia", label: "Australia" },
+  { value: "Singapore", label: "Singapore" },
+  { value: "China", label: "China" },
+];
+
 export default function OrganizationPage() {
   const { token, logout, account } = useAuth();
   const [activeMenu, setActiveMenu] = useState("settings");
-  const [orgData, setOrgData] = useState<{ name: string; organizationSize: number; id: string } | null>(null); // Initialisé à null pour indiquer un état de chargement
+  const [orgData, setOrgData] = useState<{ organizationName: string; teamSize: string; region: string; id: string } | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,6 +78,11 @@ export default function OrganizationPage() {
   const [suggestFeatures, setSuggestFeatures] = useState(false);
   const [featureSuggestions, setFeatureSuggestions] = useState<string[]>([""]);
 
+  // Edit dialog states
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editField, setEditField] = useState<"organizationName" | "teamSize" | "region" | null>(null);
+  const [editValue, setEditValue] = useState<string>("");
+
   // Fonction pour charger les données de l'organisation
   const fetchOrganizationData = async () => {
     const authToken = token || localStorage.getItem("token");
@@ -52,16 +93,17 @@ export default function OrganizationPage() {
     }
     try {
       const response = await axios.get("/col/organization", { headers: { Authorization: `Bearer ${authToken}` } });
-      console.log("Données reçues de /col/organization:", response.data); // Débogage
+      console.log("Données reçues de /col/organization:", response.data);
       setOrgData({
-        name: response.data.data.name || "Organization Name",
-        organizationSize: response.data.data.organizationSize || 5,
+        organizationName: response.data.data.organizationName || "Organization Name",
+        teamSize: response.data.data.teamSize || "Unknown",
+        region: response.data.data.region || "Unknown",
         id: response.data.data.id || "",
       });
     } catch (err: any) {
       console.error("Erreur dans fetchOrganizationData:", err);
       setError(err.response?.data?.message || "Failed to fetch organization data");
-      setOrgData({ name: "Organization Name", organizationSize: 5, id: "" }); // Valeur par défaut en cas d'erreur
+      setOrgData({ organizationName: "Organization Name", teamSize: "Unknown", region: "Unknown", id: "" });
     } finally {
       setLoading(false);
     }
@@ -90,6 +132,31 @@ export default function OrganizationPage() {
     }
   };
 
+  // Fonction pour inviter un membre
+  const handleInviteMember = async () => {
+    if (!inviteEmail.trim()) {
+      setMessage({ type: "error", text: "Please fill in the email" });
+      return;
+    }
+    const authToken = token || localStorage.getItem("token");
+    if (!authToken) return;
+    try {
+      await axios.post(
+        "/col/invite-account",
+        { email: inviteEmail, language: "en", region: orgData?.region, teamSize: orgData?.teamSize },
+        { headers: { Authorization: `Bearer ${authToken}` } }
+      );
+      setMessage({ type: "success", text: "Invitation sent successfully" });
+      setInviteDialogOpen(false);
+      setInviteEmail("");
+      fetchMembers();
+    } catch (err: any) {
+      setMessage({ type: "error", text: err.response?.data?.message || "Failed to send invitation" });
+      if (err.response?.status === 401) logout();
+    }
+    setTimeout(() => setMessage(null), 3000);
+  };
+
   useEffect(() => {
     if (account && token) {
       fetchOrganizationData();
@@ -100,23 +167,40 @@ export default function OrganizationPage() {
     }
   }, [account, token]);
 
-  const handleSave = async (field: "name" | "organizationSize") => {
+  const handleSave = async () => {
     const authToken = token || localStorage.getItem("token");
-    if (!authToken || !orgData) return;
+    if (!authToken || !orgData || !editField) return;
     try {
-      await axios.put("/col/organization", { [field]: orgData[field] }, { headers: { Authorization: `Bearer ${authToken}` } });
-      setMessage({ type: "success", text: `${field.charAt(0).toUpperCase() + field.slice(1)} updated successfully` });
-      fetchOrganizationData(); // Recharger les données après la sauvegarde
+      await axios.put(
+        "/col/organization",
+        { [editField]: editValue },
+        { headers: { Authorization: `Bearer ${authToken}` } }
+      );
+      setMessage({ type: "success", text: `${editField.charAt(0).toUpperCase() + editField.slice(1)} updated successfully` });
+      setOrgData((prev) => (prev ? { ...prev, [editField]: editValue } : null));
+      setEditDialogOpen(false);
+      setEditField(null);
+      setEditValue("");
     } catch (err: any) {
-      setMessage({ type: "error", text: err.response?.data?.message || `Failed to update ${field}` });
+      setMessage({ type: "error", text: err.response?.data?.message || `Failed to update ${editField}` });
     }
     setTimeout(() => setMessage(null), 3000);
   };
 
-  const handleEditToggle = (field: "name" | "organizationSize") => {
-    if (orgData) {
-      setOrgData((prev) => (prev ? { ...prev, [field]: prev[field] } : null)); // No-op, ajuste si nécessaire
+  const handleEditClick = (field: "organizationName" | "teamSize" | "region", currentValue: string) => {
+    if (account?.status !== "AdministratorOrganization") {
+      setError("You do not have permission to edit this field.");
+      return;
     }
+    setEditField(field);
+    setEditValue(currentValue);
+    setEditDialogOpen(true);
+  };
+
+  const handleCancelEdit = () => {
+    setEditDialogOpen(false);
+    setEditField(null);
+    setEditValue("");
   };
 
   const handleExportCSV = () => {
@@ -136,26 +220,6 @@ export default function OrganizationPage() {
       return;
     }
     setInviteDialogOpen(true);
-  };
-
-  const handleInviteMember = async () => {
-    if (!inviteEmail.trim()) {
-      setMessage({ type: "error", text: "Please fill in the email" });
-      return;
-    }
-    const authToken = token || localStorage.getItem("token");
-    if (!authToken) return;
-    try {
-      await axios.post("/col/invite-account", { email: inviteEmail, language: "en" }, { headers: { Authorization: `Bearer ${authToken}` } });
-      setMessage({ type: "success", text: "Invitation sent successfully" });
-      setInviteDialogOpen(false);
-      setInviteEmail("");
-      fetchMembers();
-    } catch (err: any) {
-      setMessage({ type: "error", text: err.response?.data?.message || "Failed to send invitation" });
-      if (err.response?.status === 401) logout();
-    }
-    setTimeout(() => setMessage(null), 3000);
   };
 
   const handleRemoveMember = async () => {
@@ -187,12 +251,16 @@ export default function OrganizationPage() {
     const authToken = token || localStorage.getItem("token");
     if (!authToken) return;
     try {
-      await axios.post("/col/feedback", {
-        rating,
-        feedbackText,
-        suggestFeatures,
-        featureSuggestions: suggestFeatures ? featureSuggestions.filter((s) => s.trim()) : [],
-      }, { headers: { Authorization: `Bearer ${authToken}` } });
+      await axios.post(
+        "/col/feedback",
+        {
+          rating,
+          feedbackText,
+          suggestFeatures,
+          featureSuggestions: suggestFeatures ? featureSuggestions.filter((s) => s.trim()) : [],
+        },
+        { headers: { Authorization: `Bearer ${authToken}` } }
+      );
       setMessage({ type: "success", text: "Thank you for your feedback!" });
       setRating(null);
       setFeedbackText("");
@@ -204,78 +272,73 @@ export default function OrganizationPage() {
     setTimeout(() => setMessage(null), 3000);
   };
 
-  const renderSettingsField = (label: string, value: string | number, field: "name" | "organizationSize" | "id", editable = true) => (
+  const renderSettingsField = (label: string, value: string, field: "organizationName" | "teamSize" | "region", editable = true) => (
     <React.Fragment>
       {orgData && (
-        <TableRow sx={{ borderBottom: "1px solid #2d3748" }}>
-          <TableCell sx={{ color: "#a0aec0", fontWeight: 500, fontSize: "14px", borderBottom: "1px solid #2d3748", py: 2.5, px: 3, width: "30%" }}>{label}</TableCell>
-          <TableCell sx={{ borderBottom: "1px solid #2d3748", py: 2.5, px: 3 }}>
-            {field === "id" ? (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                <Typography variant="body2" sx={{ color: "#e2e8f0", fontSize: "14px" }}>{value}</Typography>
-                <IconButton size="small" sx={{ color: "#4299e1" }}>
-                  <GetApp sx={{ fontSize: "16px" }} />
-                </IconButton>
-              </Box>
-            ) : (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                <TextField
-                  value={value}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                    if (orgData) {
-                      setOrgData((prev) =>
-                        prev ? { ...prev, [field]: field === "organizationSize" ? parseInt(e.target.value) || 5 : e.target.value } : null
-                      );
-                    }
-                  }}
-                  disabled={!editable}
-                  variant="outlined"
-                  size="small"
-                  type={field === "organizationSize" ? "number" : "text"}
-                  sx={{
-                    flexGrow: 1,
-                    maxWidth: 400,
-                    "& .MuiOutlinedInput-root": {
-                      bgcolor: editable ? "#2d3748" : "transparent",
-                      color: "#e2e8f0",
-                      "& fieldset": { borderColor: editable ? "#4a5568" : "transparent" },
-                      "&:hover fieldset": { borderColor: "#718096" },
-                      "&.Mui-disabled": { "& fieldset": { borderColor: "transparent" } },
-                    },
-                    "& .MuiInputLabel-root": { color: "#a0aec0", fontSize: "14px" },
-                  }}
-                />
-                {editable && (
-                  <Box sx={{ display: "flex", gap: 1 }}>
-                    <IconButton size="small" sx={{ color: "#4299e1" }} onClick={() => handleEditToggle(field)}>
-                      <Edit sx={{ fontSize: "16px" }} />
-                    </IconButton>
-                    {editable && (
-                      <Button
-                        variant="contained"
-                        size="small"
-                        onClick={() => handleSave(field)}
-                        sx={{ bgcolor: "#4299e1", "&:hover": { bgcolor: "#3182ce" }, fontSize: "12px", px: 2, py: 0.5 }}
-                      >
-                        Save
-                      </Button>
-                    )}
-                  </Box>
-                )}
-              </Box>
-            )}
-          </TableCell>
-        </TableRow>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            py: 2.5,
+            px: 3,
+            borderBottom: "1px solid #2d3748",
+          }}
+        >
+          <Typography
+            variant="body2"
+            sx={{
+              color: "#a0aec0",
+              fontWeight: 500,
+              fontSize: "14px",
+              width: "150px", // Largeur fixe pour aligner les labels
+            }}
+          >
+            {label}
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{
+              color: "#e2e8f0",
+              fontSize: "14px",
+              flexGrow: 1,
+              textAlign: "center",
+            }}
+          >
+            {value}
+          </Typography>
+          {editable && account?.status === "AdministratorOrganization" && (
+            <IconButton size="small" sx={{ color: "#4299e1", width: "40px" }} onClick={() => handleEditClick(field, value)}>
+              <Edit sx={{ fontSize: "16px" }} />
+            </IconButton>
+          )}
+        </Box>
       )}
     </React.Fragment>
   );
 
+  // Adapter orgData pour CollaboratorPage et FeedbackPage
+  const adaptOrgData = (data: { organizationName: string; teamSize: string; region: string; id: string } | null) => {
+    if (!data) {
+      return { name: "Loading...", organizationSize: 0, id: "", region: "Unknown", teamSize: "Unknown" };
+    }
+    const teamSizeNumber = data.teamSize === "Unknown" ? 0 : parseInt(data.teamSize.split("-")[0]) || 0;
+    return {
+      name: data.organizationName,
+      organizationSize: teamSizeNumber,
+      id: data.id,
+      region: data.region,
+      teamSize: data.teamSize,
+    };
+  };
+
   const renderContent = () => {
+    const defaultOrgData = { organizationName: "Loading...", teamSize: "Unknown", region: "Unknown", id: "" };
+    const adaptedOrgData = adaptOrgData(orgData || defaultOrgData);
     switch (activeMenu) {
       case "settings":
         return (
           <SettingsPage
-            orgData={orgData || { name: "Loading...", organizationSize: 0, id: "" }} // Valeur par défaut pendant le chargement
+            orgData={orgData || defaultOrgData}
             message={message}
             error={error}
             loading={loading}
@@ -285,7 +348,7 @@ export default function OrganizationPage() {
       case "members":
         return (
           <CollaboratorPage
-            orgData={orgData || { name: "Loading...", organizationSize: 0, id: "" }}
+            orgData={adaptedOrgData}
             members={members}
             message={message}
             error={error}
@@ -312,7 +375,7 @@ export default function OrganizationPage() {
       case "feedback":
         return (
           <FeedbackPage
-            orgData={orgData || { name: "Loading...", organizationSize: 0, id: "" }}
+            orgData={adaptedOrgData}
             rating={rating}
             setRating={setRating}
             feedbackText={feedbackText}
@@ -336,6 +399,90 @@ export default function OrganizationPage() {
     <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "#0f172a", flexDirection: { xs: "column", sm: "row" } }}>
       <Sidebar activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
       <Box sx={{ flexGrow: 1, p: { xs: 2, sm: 4 }, overflow: "auto", bgcolor: "#0f172a" }}>{renderContent()}</Box>
+      <Dialog
+        open={editDialogOpen}
+        onClose={handleCancelEdit}
+        PaperProps={{
+          sx: {
+            bgcolor: "#1a202c",
+            border: "1px solid #2d3748",
+            borderRadius: "12px",
+            minWidth: "400px",
+          },
+        }}
+      >
+        <DialogTitle sx={{ color: "#e2e8f0", borderBottom: "1px solid #2d3748" }}>
+          Edit {editField === "organizationName" ? "Organization Name" : editField === "teamSize" ? "Team Size" : "Region"}
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          {editField === "organizationName" ? (
+            <TextField
+              autoFocus
+              fullWidth
+              label="Organization Name"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  bgcolor: "#2d3748",
+                  color: "#e2e8f0",
+                  "& fieldset": { borderColor: "#4a5568" },
+                  "&:hover fieldset": { borderColor: "#718096" },
+                  "&.Mui-focused fieldset": { borderColor: "#4299e1" },
+                },
+                "& .MuiInputLabel-root": {
+                  color: "#a0aec0",
+                  "&.Mui-focused": { color: "#4299e1" },
+                },
+              }}
+            />
+          ) : (
+            <FormControl fullWidth>
+              <InputLabel sx={{ color: "#a0aec0", "&.Mui-focused": { color: "#4299e1" } }}>
+                {editField === "teamSize" ? "Team Size" : "Region"}
+              </InputLabel>
+              <Select
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                sx={{
+                  bgcolor: "#2d3748",
+                  color: "#e2e8f0",
+                  "& .MuiOutlinedInput-notchedOutline": { borderColor: "#4a5568" },
+                  "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#718096" },
+                  "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#4299e1" },
+                }}
+              >
+                {(editField === "teamSize" ? teamSizeOptions : regionOptions).map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 3, borderTop: "1px solid #2d3748" }}>
+          <Button
+            onClick={handleCancelEdit}
+            sx={{
+              color: "#a0aec0",
+              "&:hover": { bgcolor: "rgba(160, 174, 192, 0.1)" },
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSave}
+            variant="contained"
+            sx={{
+              bgcolor: "#4299e1",
+              "&:hover": { bgcolor: "#3182ce" },
+            }}
+          >
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

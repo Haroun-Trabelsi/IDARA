@@ -7,10 +7,10 @@ import { PORT } from './constants/index'
 import authRoutes from './routes/auth'
 import projectsRouter from './routes/projects'
 import ResultRouter from './routes/Tasks'
-import collaborator from './routes/Manage_Organization'
+import OrganizationSettings from './routes/Manage_Organization'
 import video from './routes/VideoRoutesTest'
 import Admin from './routes/AdminDashboard'
-
+//import { authenticateJWT, restrictToAdmin } from './middlewares/AuthAdmin';
 import ffmpegStatic from 'ffmpeg-static';
 import ffmpeg from 'fluent-ffmpeg';
 
@@ -40,9 +40,11 @@ const bootstrap = async () => {
   app.use('/api', projectsRouter);
   app.use('/Results', ResultRouter);
 
-  app.use('/col', collaborator);
+  app.use('/col', OrganizationSettings);
   app.use('/vid', video);
-  app.use('/api/admin', Admin);
+  //app.use('/api/admin', Admin);
+  app.use('/api/admin',Admin);
+
   app.use('/contact', contactRoutes);
   app.use('/admin', adminRoutes);
 

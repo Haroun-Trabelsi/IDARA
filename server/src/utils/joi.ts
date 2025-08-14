@@ -12,12 +12,11 @@ class Joi {
       console.log('❌ Joi validation error:', error.message);
       return {
         statusCode: 400,
-        message: error.details.map((d: any) => d.message).join(', '), // Retourne tous les messages d'erreur
+        message: error.details.map((d: any) => d.message).join(', '),
       };
     }
   }
 
-  // Schémas prédéfinis
   get profileSchema() {
     return {
       name: this.instance.string().regex(/^[a-zA-Z0-9]+$/).min(2).required().messages({
@@ -33,6 +32,12 @@ class Joi {
       email: this.instance.string().email().required().messages({
         'string.email': 'Email must be a valid email address',
         'any.required': 'Email is required',
+      }),
+      teamSize: this.instance.string().required().messages({
+        'any.required': 'Team size is required',
+      }),
+      region: this.instance.string().required().messages({
+        'any.required': 'Region is required',
       }),
     };
   }

@@ -1,7 +1,12 @@
-import React, { useState, useEffect, FC } from 'react';
+
+"use client";
+
+import React, { FC, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AdminLayout from './AdminLayout';
 import AdminDashboardContent from './AdminDashboardContent';
 import axios from 'axios';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Interfaces
 interface Organization {
@@ -14,6 +19,7 @@ interface Organization {
   joinDate: string;
   lastActive: string;
   rating: number;
+  feedbacks: { rating: number; feedbackText: string; featureSuggestions: string[]; createdAt: string }[];
 }
 
 interface OrganizationGrowthData {
@@ -28,6 +34,14 @@ interface RatingDistribution {
   percentage: number;
 }
 
+interface ProjectMetric {
+  organizationName: string;
+  totalProjects: number;
+  activeProjects: number;
+  completedProjects: number;
+  totalTasks: number;
+}
+
 const AdminDashboard: FC = () => {
   const [darkMode, setDarkMode] = useState<boolean>(true);
   const [selectedMenuItem, setSelectedMenuItem] = useState<string>('dashboard');
@@ -35,33 +49,61 @@ const AdminDashboard: FC = () => {
   const [emailMessage, setEmailMessage] = useState<string>('');
   const [dashboardData, setDashboardData] = useState<{
     totalOrganizations: number;
-    activeProjects: number;
+    totalProjects: number;
     totalUsers: number;
     organizationGrowthData: OrganizationGrowthData[];
     ratingDistribution: RatingDistribution[];
     organizationsList: Organization[];
+    projectMetrics: ProjectMetric[];
   }>({
     totalOrganizations: 0,
-    activeProjects: 0,
+    totalProjects: 0,
     totalUsers: 0,
     organizationGrowthData: [],
     ratingDistribution: [],
-    organizationsList: []
+    organizationsList: [],
+    projectMetrics: [],
   });
+  const navigate = useNavigate();
+  const { isLoggedIn } = useAuth();
 
+  // Rediriger si non connecté
   useEffect(() => {
+    if (!isLoggedIn) {
+      navigate('/login', { replace: true });
+    }
+  }, [isLoggedIn, navigate]);
+
+  // Charger les données du dashboard
+  useEffect(() => {
+    let isMounted = true;
+
     const fetchData = async () => {
       try {
+        const token = localStorage.getItem('token');
+        if (!token || !isMounted) {
+          return;
+        }
         const response = await axios.get('http://localhost:8080/api/admin/dashboard', {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+          headers: { Authorization: `Bearer ${token}` },
         });
-        setDashboardData(response.data);
+        if (isMounted) {
+          setDashboardData(response.data);
+        }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
+        if (isMounted) {
+          navigate('/login', { replace: true });
+        }
       }
     };
+
     fetchData();
-  }, []);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [navigate]);
 
   return (
     <AdminLayout

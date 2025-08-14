@@ -1,6 +1,10 @@
-import React, { FC } from 'react';
-import { Search, Moon, Sun, Bell, User, BarChart3, Building2, Users, Clapperboard, Mail, Settings } from 'lucide-react';
+"use client";
+
+import React, { FC, useState } from 'react';
+import { Search, Moon, Sun, User, BarChart3, Building2, Clapperboard, Mail, LogOut } from 'lucide-react';
 import { CSSProperties } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface AdminLayoutProps {
   darkMode: boolean;
@@ -11,14 +15,22 @@ interface AdminLayoutProps {
 }
 
 const AdminLayout: FC<AdminLayoutProps> = ({ darkMode, setDarkMode, selectedMenuItem, setSelectedMenuItem, children }) => {
+  const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'organizations', label: 'Organizations', icon: Building2 },
-    { id: 'users', label: 'Users', icon: Users },
     { id: 'projects', label: 'Projects', icon: Clapperboard },
     { id: 'emails', label: 'Email Center', icon: Mail },
-    { id: 'settings', label: 'Settings', icon: Settings }
   ];
+
+  const handleLogout = () => {
+    logout(); // Utiliser la fonction logout de AuthContext
+    setIsMenuOpen(false);
+    navigate('/login', { replace: true }); // Rediriger avec replace pour éviter l'historique
+  };
 
   const styles: { [key: string]: CSSProperties } = {
     container: {
@@ -140,30 +152,11 @@ const AdminLayout: FC<AdminLayoutProps> = ({ darkMode, setDarkMode, selectedMenu
       transition: 'left 0.2s',
       left: darkMode ? '24px' : '4px',
     },
-    notificationButton: {
-      backgroundColor: 'transparent',
-      border: 'none',
-      cursor: 'pointer',
-      position: 'relative' as const,
-    },
-    notificationBadge: {
-      position: 'absolute' as const,
-      top: '-5px',
-      right: '-5px',
-      backgroundColor: '#ef4444',
-      color: '#ffffff',
-      borderRadius: '50%',
-      width: '18px',
-      height: '18px',
-      display: 'flex' as const,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-      fontSize: '12px',
-    },
     profileButton: {
       backgroundColor: 'transparent',
       border: 'none',
       cursor: 'pointer',
+      position: 'relative' as const,
     },
     avatar: {
       width: '32px',
@@ -173,6 +166,31 @@ const AdminLayout: FC<AdminLayoutProps> = ({ darkMode, setDarkMode, selectedMenu
       display: 'flex' as const,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
+    },
+    dropdownMenu: {
+      position: 'absolute' as const,
+      top: '40px',
+      right: '0',
+      backgroundColor: '#2d3748',
+      borderRadius: '8px',
+      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+      zIndex: 1000,
+      width: '150px',
+    },
+    dropdownItem: {
+      display: 'flex',
+      alignItems: 'center',
+      padding: '10px',
+      color: '#e2e8f0',
+      cursor: 'pointer',
+      borderRadius: '4px',
+      backgroundColor: 'transparent',
+      border: 'none',
+      width: '100%',
+      textAlign: 'left' as const,
+    },
+    dropdownItemHover: {
+      backgroundColor: '#4a5568',
     },
     mainContent: {
       flex: 1,
@@ -203,8 +221,12 @@ const AdminLayout: FC<AdminLayoutProps> = ({ darkMode, setDarkMode, selectedMenu
                     ...styles.menuItem,
                     ...(selectedMenuItem === item.id ? styles.menuItemSelected : {}),
                   }}
-                  onMouseEnter={(e) => { if (selectedMenuItem !== item.id) e.currentTarget.style.backgroundColor = styles.menuItemHover.backgroundColor || '#4a5568'; }}
-                  onMouseLeave={(e) => { if (selectedMenuItem !== item.id) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                  onMouseEnter={(e) => {
+                    if (selectedMenuItem !== item.id) e.currentTarget.style.backgroundColor = styles.menuItemHover.backgroundColor || '#4a5568';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (selectedMenuItem !== item.id) e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
                 >
                   <Icon style={styles.menuIcon} />
                   <span>{item.label}</span>
@@ -228,15 +250,26 @@ const AdminLayout: FC<AdminLayoutProps> = ({ darkMode, setDarkMode, selectedMenu
                 </button>
                 <Sun size={16} />
               </div>
-              <button style={styles.notificationButton}>
-                <Bell size={20} />
-                <span style={styles.notificationBadge}>3</span>
-              </button>
-              <button style={styles.profileButton}>
-                <div style={styles.avatar}>
-                  <User size={16} color="#ffffff" />
-                </div>
-              </button>
+              <div style={styles.profileButton}>
+                <button onClick={() => setIsMenuOpen(!isMenuOpen)} style={styles.profileButton}>
+                  <div style={styles.avatar}>
+                    <User size={16} color="#ffffff" />
+                  </div>
+                </button>
+                {isMenuOpen && (
+                  <div style={styles.dropdownMenu}>
+                    <button
+                      onClick={handleLogout}
+                      style={styles.dropdownItem}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = styles.dropdownItemHover.backgroundColor || '#4a5568')}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    >
+                      <LogOut size={16} style={{ marginRight: '10px' }} />
+                      <span>Logout</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           <div style={styles.content}>{children}</div>
