@@ -2,7 +2,7 @@
 import express, { Request, Response, NextFunction, RequestHandler } from 'express';
 import checkBearerToken from '../middlewares/check-bearer-token';
 import errorHandler from '../middlewares/error-handler';
-import register from '../controllers/auth/register';
+import {register ,updateAccount } from '../controllers/auth/register';
 import login from '../controllers/auth/login';
 import loginWithToken from '../controllers/auth/login-with-token';
 import { verify, resendVerification } from '../controllers/auth/verify';
@@ -17,7 +17,7 @@ const router = express.Router();
 
 // POST at route: http://localhost:8080/auth/register
 router.post('/register', [], register, errorHandler);
-
+router.put('/update-account', updateAccount,errorHandler);
 // POST at path: http://localhost:8080/auth/login
 router.post('/login', [], login, errorHandler);
 

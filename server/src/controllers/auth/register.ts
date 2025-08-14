@@ -35,7 +35,7 @@ const register: RequestHandler = async (req, res, next) => {
         surname: joi.instance.string().required(),
         organizationName: joi.instance.string().required(),
         email: joi.instance.string().email().required(),
-        password: joi.instance.string().min(8).required(), // Ajout de longueur minimale
+        password: joi.instance.string().min(8).required(),
         role: joi.instance.string().valid('user', 'admin').default('user'),
         canInvite: joi.instance.boolean().default(true),
         isVerified: joi.instance.boolean().default(false),
@@ -115,7 +115,7 @@ const register: RequestHandler = async (req, res, next) => {
 
     res.status(201).json({
       message: 'Signup successful! Please check your email for a verification code.',
-      data: { ...data, email },
+      data: { ...data, email, _id: account._id },
     });
   } catch (error: any) {
     console.error('Erreur serveur lors de l\'inscription :', error);
@@ -134,4 +134,145 @@ const register: RequestHandler = async (req, res, next) => {
   }
 };
 
-export default register;
+const updateAccount: RequestHandler = async (req, res, next) => {
+  try {
+    console.log('Requête de mise à jour reçue :', req.body);
+
+    const validationError = await joi.validate(
+      {
+        accountId: joi.instance.string().required(),
+        name: joi.instance.string().required(),
+        surname: joi.instance.string().required(),
+        organizationName: joi.instance.string().required(),
+        email: joi.instance.string().email().required(),
+        password: joi.instance.string().min(8).required(),
+        role: joi.instance.string().valid('user', 'admin').default('user'),
+        canInvite: joi.instance.boolean().default(true),
+        isVerified: joi.instance.boolean().default(false),
+        mfaEnabled: joi.instance.boolean().default(false),
+        teamSize: joi.instance.string().required(),
+        region: joi.instance.string().required(),
+      },
+      req.body,
+      { stripUnknown: true }
+    );
+
+    if (validationError) {
+      console.log('Erreur de validation :', validationError);
+      return next(validationError);
+    }
+
+    const { accountId, name, surname, organizationName, email, password, role, canInvite, isVerified, mfaEnabled, teamSize, region } = req.body;
+
+    console.log('Recherche du compte à mettre à jour:', accountId);
+    const account = await Account.findById(accountId);
+    if (!account) {
+      console.log('Compte non trouvé :', accountId);
+      return next({
+        statusCode: 404,
+        message: 'Account not found',
+      });
+    }
+
+    console.log('Vérification si organizationName existe déjà pour un autre compte...');
+    const existingOrg = await Account.findOne({ 
+      organizationName, 
+      _id: { $ne: accountId } 
+    });
+    if (existingOrg) {
+      console.log('organizationName existe déjà :', organizationName);
+      return next({
+        statusCode: 400,
+        message: 'Your organization has been created in ftrack, connect to your organization admin.',
+      });
+    }
+
+    console.log('Vérification si email existe déjà pour un autre compte...');
+    const found = await Account.findOne({ 
+      email, 
+      _id: { $ne: accountId } 
+    });
+    if (found) {
+      console.log('Email existe déjà :', email);
+      return next({
+        statusCode: 400,
+        message: 'An account already exists with this email',
+      });
+    }
+
+    console.log('Hachage du mot de passe...');
+    const hash = await crypt.hash(password);
+
+    // Vérifier si l'email a changé
+    console.log('Ancien email:', account.email, 'Nouvel email:', email);
+    const emailChanged = account.email !== email;
+    console.log('Email a changé ?', emailChanged);
+
+    let verificationCode;
+    let verificationCodeExpires;
+
+    if (emailChanged) {
+      console.log('Email a changé, génération d\'un nouveau code de vérification...');
+      verificationCode = crypto.randomInt(100000, 999999).toString();
+      verificationCodeExpires = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+      account.isVerified = false; // Réinitialiser l'état de vérification
+    }
+
+    console.log('Mise à jour du compte...');
+    account.name = name;
+    account.surname = surname;
+    account.organizationName = organizationName;
+    account.email = email;
+    account.password = hash;
+    account.role = role;
+    account.canInvite = canInvite;
+    account.isVerified = emailChanged ? false : isVerified;
+    account.verificationCode = emailChanged ? verificationCode : account.verificationCode;
+    account.verificationCodeExpires = emailChanged ? verificationCodeExpires : account.verificationCodeExpires;
+    account.mfaEnabled = mfaEnabled;
+    account.teamSize = teamSize;
+    account.region = region;
+    await account.save();
+    console.log('Compte mis à jour avec succès :', account._id);
+
+    if (emailChanged) {
+      console.log('Envoi de l\'email de vérification à la nouvelle adresse :', email);
+      try {
+        await sendVerificationEmail(email, name, verificationCode!);
+        console.log('Email de vérification envoyé avec succès à :', email);
+      } catch (emailError: any) {
+        console.error('Erreur lors de l\'envoi de l\'email de vérification :', emailError);
+        return next({
+          statusCode: 500,
+          message: 'Failed to send verification email to the new address',
+          error: emailError.message,
+        });
+      }
+    }
+
+    const { password: _password, verificationCode: _code, verificationCodeExpires: _expires, ...data } = account.toObject();
+
+    res.status(200).json({
+      message: emailChanged 
+        ? 'Account updated successfully! Please check your new email for a verification code.' 
+        : 'Account updated successfully! Please verify your email.',
+      data: { ...data, email },
+    });
+  } catch (error: any) {
+    console.error('Erreur serveur lors de la mise à jour :', error);
+    if (error.code === 11000) {
+      console.log('Erreur de duplication (email ou autre champ unique)');
+      return next({
+        statusCode: 400,
+        message: 'An account already exists with this email or organization name',
+      });
+    }
+    next({
+      statusCode: 500,
+      message: 'Server error during account update',
+      error: error.message,
+    });
+  }
+};
+
+export { register, updateAccount };

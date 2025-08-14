@@ -21,6 +21,8 @@ interface I extends Document, Account {
   region: string;
   ID_Organization?: string;
   lastConnexion?: Date; // Nouveau champ pour la dernière connexion
+  resetPasswordToken?:string ; // Nouveau champ pour le jeton de réinitialisation
+
 }
 
 const instance = new Schema<I>(
@@ -136,6 +138,8 @@ const instance = new Schema<I>(
       type: Date,
       required: false,
     },
+    resetPasswordToken: { type: String }, // Nouveau champ pour le jeton de réinitialisation
+
   },
   {
     timestamps: true,

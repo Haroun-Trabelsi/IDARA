@@ -18,10 +18,10 @@ const ErrorPage: React.FC = () => {
     >
       <Box sx={{ textAlign: 'center', color: '#e2e8f0' }}>
         <Typography variant="h4" sx={{ mb: 2 }}>
-          Invalid Invitation
+          Invalid or Expired Link
         </Typography>
         <Typography sx={{ mb: 2 }}>
-          The invitation link is invalid or has expired. Please log in manually.
+          The link you followed is invalid or has expired.
         </Typography>
         <Button
           variant="contained"

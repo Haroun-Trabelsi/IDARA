@@ -52,7 +52,7 @@ const CheckEmailPage: React.FC = () => {
           <Typography sx={{ color: '#a0aec0', mb: 2 }}>
             If you don't see the email, please check your spam,{' '}
             <Link href="#" sx={{ color: '#4299e1', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
-              resend
+              
             </Link>{' '}
             or{' '}
             <Link href="/login" sx={{ color: '#4299e1', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>

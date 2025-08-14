@@ -131,6 +131,7 @@ export default function VerifyEmailPage() {
       region: initialData.region || ''
     };
   });
+  const [accountId] = useState<string | null>(location.state?.accountId || localStorage.getItem('pendingAccountId') || null);
   const [timer, setTimer] = useState(30);
   const [canResend, setCanResend] = useState(false);
   const [languageAnchor, setLanguageAnchor] = useState<null | HTMLElement>(null);
@@ -139,6 +140,7 @@ export default function VerifyEmailPage() {
   useEffect(() => {
     console.log('Email initial dans VerifyEmailPage:', email);
     console.log('FormData initial dans VerifyEmailPage:', formData);
+    console.log('Account ID:', accountId);
     console.log('Données de location.state:', location.state);
     console.log('Données de localStorage (pendingRegistrationData):', localStorage.getItem('pendingRegistrationData'));
     console.log('pendingVerificationEmail:', localStorage.getItem('pendingVerificationEmail'));
@@ -155,9 +157,9 @@ export default function VerifyEmailPage() {
     if (!email) {
       console.log('Aucun email trouvé, redirection vers /register');
       setMessage("No email provided. Please register again.");
-      setTimeout(() => navigate('/register', { state: { formData } }), 3000);
+      setTimeout(() => navigate('/register', { state: { formData, accountId } }), 3000);
     }
-  }, [email, location.state, navigate, formData]);
+  }, [email, location.state, navigate, formData, accountId]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
@@ -181,7 +183,7 @@ export default function VerifyEmailPage() {
     }
     if (!email) {
       setMessage("No email provided. Please register again.");
-      setTimeout(() => navigate('/register', { state: { formData } }), 3000);
+      setTimeout(() => navigate('/register', { state: { formData, accountId } }), 3000);
       return;
     }
 
@@ -201,6 +203,7 @@ export default function VerifyEmailPage() {
       setMessage(response.data.message || "Email verified successfully!");
       localStorage.removeItem('pendingVerificationEmail');
       localStorage.removeItem('pendingRegistrationData');
+      localStorage.removeItem('pendingAccountId');
       loginWithToken(response.data.token, response.data.data);
       setTimeout(() => navigate("/"), 3000);
     } catch (err: any) {
@@ -214,7 +217,7 @@ export default function VerifyEmailPage() {
   const handleResendVerification = async () => {
     if (!email || loading) {
       setMessage("No email provided. Please register again.");
-      setTimeout(() => navigate('/register', { state: { formData } }), 3000);
+      setTimeout(() => navigate('/register', { state: { formData, accountId } }), 3000);
       return;
     }
 
@@ -243,9 +246,9 @@ export default function VerifyEmailPage() {
   };
 
   const handleBackToRegister = () => {
-    console.log('Retour à /register avec formData:', formData);
+    console.log('Retour à /register avec formData et accountId:', { formData, accountId });
     localStorage.removeItem('pendingVerificationEmail');
-    navigate("/register", { state: { formData } });
+    navigate("/register", { state: { formData, accountId } });
   };
 
   const handleLanguageClick = (event: React.MouseEvent<HTMLElement>) => {

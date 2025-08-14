@@ -61,17 +61,17 @@ const App = () => {
             <Route
               path="/login"
               element={
-                <DefaultLayout>
+                <PublicLayout>
                   <Login />
-                </DefaultLayout>
+                </PublicLayout>
               }
             />
             <Route
               path="/register"
               element={
-                <DefaultLayout>
+                <PublicLayout>
                   <Register />
-                </DefaultLayout>
+                </PublicLayout>
               }
             />
             <Route
@@ -148,9 +148,9 @@ const App = () => {
             <Route
               path="/verify-email"
               element={
-                <DefaultLayout>
+                <PublicLayout>
                     <VerifyInbox />
-                </DefaultLayout>
+                </PublicLayout>
               }
             />
             <Route

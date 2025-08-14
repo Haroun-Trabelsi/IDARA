@@ -1,4 +1,3 @@
-// components/HeaderComponents/ResetPasswordPage.tsx
 import React, { useState } from 'react';
 import { 
   Box, 
@@ -42,18 +41,28 @@ const ResetPasswordPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return; // Empêche les doubles soumissions
+    console.log('Soumission du formulaire déclenchée');
     if (!token) {
       setError('Invalid reset link');
+      setLoading(false);
       return;
     }
     setLoading(true);
     setError(null);
 
     try {
-      await axios.post(`${BACKEND_URL}/auth/reset-password`, { token, newPassword });
+      const response = await axios.post(`${BACKEND_URL}/auth/reset-password`, { token, newPassword });
+      console.log('Réinitialisation réussie :', response.data);
       navigate('/login', { state: { message: 'Password reset successfully. Please log in with your new password.' } });
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to reset password');
+      console.error('Erreur lors de la réinitialisation :', err.response?.data);
+      const errorMessage = err.response?.data?.message || 'Failed to reset password';
+      setError(errorMessage);
+      if (err.response?.data?.redirect) {
+        console.log('Redirection vers :', err.response.data.redirect);
+        setTimeout(() => navigate(err.response.data.redirect.replace('http://localhost:3000', '')), 2000);
+      }
     } finally {
       setLoading(false);
     }

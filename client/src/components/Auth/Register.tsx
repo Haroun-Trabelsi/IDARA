@@ -201,6 +201,7 @@ const RegisterPage: React.FC = () => {
       region: initialData.region || ''
     };
   });
+  const [accountId, setAccountId] = useState<string | null>(location.state?.accountId || localStorage.getItem('pendingAccountId') || null);
   const [errors, setErrors] = useState({
     name: '',
     surname: '',
@@ -219,10 +220,11 @@ const RegisterPage: React.FC = () => {
 
   useEffect(() => {
     console.log('Formulaire initialisé avec:', formData);
+    console.log('Account ID:', accountId);
     console.log('Données de location.state:', location.state?.formData);
     console.log('Données de localStorage (pendingRegistrationData):', localStorage.getItem('pendingRegistrationData'));
     console.log('pendingVerificationEmail:', localStorage.getItem('pendingVerificationEmail'));
-  }, [formData, location.state]);
+  }, [formData, location.state, accountId]);
 
   const debouncedCheckOrganizationName = useCallback(
     debounce(async (name: string) => {
@@ -318,15 +320,30 @@ const RegisterPage: React.FC = () => {
         mfaEnabled: false,
         status: 'AdministratorOrganization',
       };
-      console.log('Envoi des données d\'inscription:', registrationData);
+
+      console.log('Envoi des données:', accountId ? 'Mise à jour du compte' : 'Inscription', registrationData);
+
+      if (accountId) {
+        // Mise à jour du compte existant
+        const response = await axios.put('http://localhost:8080/auth/update-account', {
+          ...registrationData,
+          accountId
+        });
+        console.log('Mise à jour réussie:', response.data);
+      } else {
+        // Création d'un nouveau compte
+        const response = await axios.post('http://localhost:8080/auth/register', registrationData);
+        setAccountId(response.data.data._id);
+        localStorage.setItem('pendingAccountId', response.data.data._id);
+        console.log('Inscription réussie, stockage de l\'accountId:', response.data.data._id);
+      }
+
       localStorage.setItem('pendingRegistrationData', JSON.stringify(formData));
       localStorage.setItem('pendingVerificationEmail', formData.email);
-      await axios.post('http://localhost:8080/auth/register', registrationData);
-      console.log('Inscription réussie, stockage de l\'email:', formData.email);
       console.log('Redirection vers /verify-email avec email:', formData.email);
-      navigate('/verify-email', { state: { email: formData.email, formData } });
+      navigate('/verify-email', { state: { email: formData.email, formData, accountId: accountId || localStorage.getItem('pendingAccountId') } });
     } catch (err: any) {
-      console.error('Erreur d\'inscription:', err);
+      console.error('Erreur:', accountId ? 'Mise à jour' : 'Inscription', err);
       setErrors(prev => ({
         ...prev,
         email: err.response?.data?.message.includes('email') ? err.response?.data?.message : prev.email,
@@ -739,7 +756,7 @@ const RegisterPage: React.FC = () => {
               }}
               startIcon={loading ? <CircularProgress size={18} sx={{ color: '#666666' }} /> : <EmailIcon />}
             >
-              {loading ? 'Creating account...' : 'Create Account'}
+              {loading ? 'Processing...' : (accountId ? 'Update Account' : 'Create Account')}
             </Button>
 
             <Typography
