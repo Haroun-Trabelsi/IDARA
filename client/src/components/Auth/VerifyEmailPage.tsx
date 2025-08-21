@@ -1,3 +1,4 @@
+// Modified VerifyEmailPage.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -205,7 +206,7 @@ export default function VerifyEmailPage() {
       localStorage.removeItem('pendingRegistrationData');
       localStorage.removeItem('pendingAccountId');
       loginWithToken(response.data.token, response.data.data);
-      setTimeout(() => navigate("/"), 3000);
+      setTimeout(() => navigate("/select-mode"), 3000);
     } catch (err: any) {
       console.error("Verification error:", err.response?.data, err.response?.status);
       setMessage(err.response?.data?.message || "Invalid verification code.");

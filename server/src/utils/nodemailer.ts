@@ -2,6 +2,10 @@
 import nodemailer from 'nodemailer';
 import fs from 'fs';
 import path from 'path';
+import dotenv from 'dotenv';
+dotenv.config();
+
+console.log('Debug: Nodemailer transporter initialized with user:', process.env.EMAIL_USER);
 
 export const transporter = nodemailer.createTransport({ // Ajout de 'export'
   service: 'gmail',
@@ -10,7 +14,6 @@ export const transporter = nodemailer.createTransport({ // Ajout de 'export'
     pass: process.env.EMAIL_PASS,
   },
 });
-
 const getEmailTemplate = (templateName: string) => {
   const templatePath = path.join(__dirname, '..', 'utils', 'emailTemplates', `${templateName}.html`);
   return fs.readFileSync(templatePath, 'utf-8');

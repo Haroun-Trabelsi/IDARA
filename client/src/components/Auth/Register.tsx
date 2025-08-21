@@ -1,13 +1,13 @@
+// src/components/Auth/RegisterPage.tsx
+"use client";
+
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  Box, 
-  TextField, 
-  Button, 
-  Typography, 
+import {
+  Box,
+  TextField,
+  Button,
+  Typography,
   CircularProgress,
-  ThemeProvider,
-  createTheme,
-  CssBaseline,
   FormControlLabel,
   Checkbox,
   IconButton,
@@ -18,7 +18,7 @@ import {
   InputLabel,
   InputAdornment
 } from '@mui/material';
-import { 
+import {
   Email as EmailIcon,
   Language as LanguageIcon,
   Visibility,
@@ -30,127 +30,8 @@ import { validateProfile, validatePassword } from '../../utils/validation';
 import axios from 'axios';
 import debounce from 'lodash.debounce';
 
-const darkTheme = createTheme({
-  palette: {
-    mode: "dark",
-    primary: { main: "#4299e1" },
-    secondary: { main: "#ff6b35" },
-    background: { 
-      default: "#0a0a0a", 
-      paper: "#141414" 
-    },
-    text: { 
-      primary: "#ffffff", 
-      secondary: "#b3b3b3" 
-    },
-  },
-  typography: {
-    fontFamily: '"Roboto", "Arial", sans-serif',
-    h4: {
-      fontSize: '1.75rem',
-      fontWeight: 500,
-    },
-    body2: {
-      fontSize: '0.875rem',
-    }
-  },
-  components: {
-    MuiCssBaseline: { 
-      styleOverrides: { 
-        body: { 
-          backgroundColor: "#0a0a0a",
-          backgroundImage: "radial-gradient(circle at 50% 50%, rgba(66, 153, 225, 0.03) 0%, transparent 50%)",
-        } 
-      } 
-    },
-    MuiTextField: {
-      styleOverrides: {
-        root: {
-          '& .MuiOutlinedInput-root': {
-            backgroundColor: 'rgba(255, 255, 255, 0.05)',
-            borderRadius: '6px',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            transition: 'all 0.3s ease',
-            '& fieldset': {
-              border: 'none',
-            },
-            '&:hover': {
-              backgroundColor: 'rgba(255, 255, 255, 0.08)',
-              borderColor: 'rgba(66, 153, 225, 0.3)',
-            },
-            '&.Mui-focused': {
-              backgroundColor: 'rgba(255, 255, 255, 0.08)',
-              borderColor: '#4299e1',
-              boxShadow: '0 0 0 2px rgba(66, 153, 225, 0.1)',
-            },
-          },
-          '& .MuiInputBase-input': {
-            color: '#ffffff',
-            fontSize: '0.95rem',
-            padding: '14px 16px',
-          },
-          '& .MuiInputBase-input::placeholder': {
-            color: '#888888',
-            opacity: 1,
-          },
-          '& .MuiFormHelperText-root': { color: '#f56565' }
-        },
-      },
-    },
-    MuiSelect: {
-      styleOverrides: {
-        root: {
-          backgroundColor: 'rgba(255, 255, 255, 0.05)',
-          borderRadius: '6px',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          '& .MuiOutlinedInput-notchedOutline': {
-            border: 'none',
-          },
-          '&:hover': {
-            backgroundColor: 'rgba(255, 255, 255, 0.08)',
-            borderColor: 'rgba(66, 153, 225, 0.3)',
-          },
-          '&.Mui-focused': {
-            backgroundColor: 'rgba(255, 255, 255, 0.08)',
-            borderColor: '#4299e1',
-            boxShadow: '0 0 0 2px rgba(66, 153, 225, 0.1)',
-          },
-          '& .MuiSelect-select': {
-            color: '#ffffff',
-            fontSize: '0.95rem',
-            padding: '14px 16px',
-          },
-          '& .MuiSelect-icon': {
-            color: '#888888',
-          },
-        },
-      },
-    },
-    MuiFormControl: {
-      styleOverrides: {
-        root: {
-          '& .MuiInputLabel-root': {
-            color: '#888888',
-            fontSize: '0.95rem',
-            '&.Mui-focused': {
-              color: '#4299e1',
-            },
-          },
-        },
-      },
-    },
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          borderRadius: '6px',
-          textTransform: 'none',
-          fontWeight: 500,
-          fontSize: '0.95rem',
-        },
-      },
-    },
-  },
-});
+// Import shared AppTheme wrapper that provides ThemeProvider + CssBaseline
+import AppTheme from './AppTheme';
 
 const teamSizeOptions = [
   { value: '1', label: '1' },
@@ -189,7 +70,7 @@ const RegisterPage: React.FC = () => {
   const location = useLocation();
   const [formData, setFormData] = useState<RegisterFormData>(() => {
     const savedData = localStorage.getItem('pendingRegistrationData');
-    const stateData = location.state?.formData;
+    const stateData = (location.state as any)?.formData;
     const initialData = stateData || (savedData ? JSON.parse(savedData) : {});
     return {
       name: initialData.name || '',
@@ -201,7 +82,9 @@ const RegisterPage: React.FC = () => {
       region: initialData.region || ''
     };
   });
-  const [accountId, setAccountId] = useState<string | null>(location.state?.accountId || localStorage.getItem('pendingAccountId') || null);
+  const [accountId, setAccountId] = useState<string | null>(
+    (location.state as any)?.accountId || localStorage.getItem('pendingAccountId') || null
+  );
   const [errors, setErrors] = useState({
     name: '',
     surname: '',
@@ -221,7 +104,7 @@ const RegisterPage: React.FC = () => {
   useEffect(() => {
     console.log('Formulaire initialisé avec:', formData);
     console.log('Account ID:', accountId);
-    console.log('Données de location.state:', location.state?.formData);
+    console.log('Données de location.state:', (location.state as any)?.formData);
     console.log('Données de localStorage (pendingRegistrationData):', localStorage.getItem('pendingRegistrationData'));
     console.log('pendingVerificationEmail:', localStorage.getItem('pendingVerificationEmail'));
   }, [formData, location.state, accountId]);
@@ -324,14 +207,14 @@ const RegisterPage: React.FC = () => {
       console.log('Envoi des données:', accountId ? 'Mise à jour du compte' : 'Inscription', registrationData);
 
       if (accountId) {
-        // Mise à jour du compte existant
+        // update existing account
         const response = await axios.put('http://localhost:8080/auth/update-account', {
           ...registrationData,
           accountId
         });
         console.log('Mise à jour réussie:', response.data);
       } else {
-        // Création d'un nouveau compte
+        // create new account
         const response = await axios.post('http://localhost:8080/auth/register', registrationData);
         setAccountId(response.data.data._id);
         localStorage.setItem('pendingAccountId', response.data.data._id);
@@ -346,11 +229,11 @@ const RegisterPage: React.FC = () => {
       console.error('Erreur:', accountId ? 'Mise à jour' : 'Inscription', err);
       setErrors(prev => ({
         ...prev,
-        email: err.response?.data?.message.includes('email') ? err.response?.data?.message : prev.email,
-        password: err.response?.data?.message.includes('password') ? err.response?.data?.message : prev.password,
-        teamSize: err.response?.data?.message.includes('teamSize') ? err.response?.data?.message : prev.teamSize,
-        region: err.response?.data?.message.includes('region') ? err.response?.data?.message : prev.region,
-        organizationName: err.response?.data?.message.includes('organization') ? err.response?.data?.message : prev.organizationName
+        email: err.response?.data?.message?.includes('email') ? err.response?.data?.message : prev.email,
+        password: err.response?.data?.message?.includes('password') ? err.response?.data?.message : prev.password,
+        teamSize: err.response?.data?.message?.includes('teamSize') ? err.response?.data?.message : prev.teamSize,
+        region: err.response?.data?.message?.includes('region') ? err.response?.data?.message : prev.region,
+        organizationName: err.response?.data?.message?.includes('organization') ? err.response?.data?.message : prev.organizationName
       }));
     } finally {
       setLoading(false);
@@ -360,8 +243,7 @@ const RegisterPage: React.FC = () => {
   const isSubmitDisabled = !formData.name || !formData.surname || !formData.organizationName || !formData.email || !formData.password || !formData.teamSize || !formData.region || !!errors.name || !!errors.surname || !!errors.organizationName || !!errors.email || !!errors.password || !!errors.teamSize || !!errors.region;
 
   return (
-    <ThemeProvider theme={darkTheme}>
-      <CssBaseline />
+    <AppTheme>
       <Box
         sx={{
           minHeight: '100vh',
@@ -544,7 +426,7 @@ const RegisterPage: React.FC = () => {
               </InputLabel>
               <Select
                 value={formData.teamSize}
-                onChange={(e) => handleSelectChange('teamSize', e.target.value)}
+                onChange={(e) => handleSelectChange('teamSize', e.target.value as string)}
                 IconComponent={KeyboardArrowDown}
                 sx={{
                   backgroundColor: 'rgba(255, 255, 255, 0.05)',
@@ -619,7 +501,7 @@ const RegisterPage: React.FC = () => {
               </InputLabel>
               <Select
                 value={formData.region}
-                onChange={(e) => handleSelectChange('region', e.target.value)}
+                onChange={(e) => handleSelectChange('region', e.target.value as string)}
                 IconComponent={KeyboardArrowDown}
                 sx={{
                   backgroundColor: 'rgba(255, 255, 255, 0.05)',
@@ -808,7 +690,7 @@ const RegisterPage: React.FC = () => {
           </Box>
         </Box>
       </Box>
-    </ThemeProvider>
+    </AppTheme>
   );
 };
 

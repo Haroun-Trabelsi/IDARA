@@ -11,6 +11,10 @@ import forgotPassword from '../controllers/auth/forgotPassword';
 import { editProfile, changePassword } from '../controllers/auth/editProfile';
 import jwt from '../utils/jwt';
 import resetPassword from '../controllers/auth/resetPassword';
+import fs from "fs";
+import path from "path";
+import { saveFtrackConfig } from "../controllers/auth/ftrack";
+
 
 // initialize router
 const router = express.Router();
@@ -61,5 +65,6 @@ const resetPasswordHandler: RequestHandler<{ token: string }> = (req, res, next)
 };
 
 router.get('/reset-password/:token', resetPasswordHandler);
+router.post("/ftrack", [checkBearerToken], saveFtrackConfig, errorHandler);
 
 export default router;

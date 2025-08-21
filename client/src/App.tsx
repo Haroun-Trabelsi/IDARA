@@ -21,12 +21,13 @@ import RoleGuard from 'utils/RoleGuard';
 import ChatbotWidget from 'components/Chatbot/ChatbotWidget';
 import DocumentationPage from 'pages/DocumentationPage';
 import AdminMessages from 'components/admin/AdminMessages';
-
+import SelectModePage from 'components/Auth/SelectModePage'; // Import the new component
 
 import ResetPasswordPage from 'components/Auth/ResetPasswordPage';
 import CheckEmailPage from 'components/Auth/ResetPwdCheckEmailPage';
 
 import RegisterStaticPage from 'components/Auth/RegisterStaticPage';
+import FtrackSetup from 'components/Auth/FtrackSetup';
 
 const DefaultLayout = ({ children }: { children: React.ReactNode }) => (
   <div className="min-h-screen flex flex-col bg-gray-900 text-gray-300 w-full">
@@ -58,6 +59,7 @@ const App = () => {
         <AuthProvider>
           <Routes>
             {/* Routes publiques sans Header, Footer, ni Chatbot */}
+
             <Route
               path="/login"
               element={
@@ -152,7 +154,24 @@ const App = () => {
                     <VerifyInbox />
                 </PublicLayout>
               }
+
             />
+                          <Route
+                path="/select-mode"
+                element={
+                  <PublicLayout>
+                    <SelectModePage />
+                  </PublicLayout>
+                }
+              />
+            <Route
+                  path="/ftrack-setup"
+                  element={
+                  <PublicLayout>
+                    <FtrackSetup />
+                  </PublicLayout>
+                  }
+                />
             <Route
               path="/CompleteProfil"
               element={
