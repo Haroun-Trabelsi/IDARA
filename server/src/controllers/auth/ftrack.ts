@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from "express";
-import fs from "fs";
+import { promises as fs } from "fs";
 import path from "path";
 
-export const saveFtrackConfig = (req: Request, res: Response, next: NextFunction) => {
+export const saveFtrackConfig = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { serverUrl, username, apiKey } = req.body;
 
@@ -10,37 +10,41 @@ export const saveFtrackConfig = (req: Request, res: Response, next: NextFunction
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    // Path to .env
     const envPath = path.resolve(__dirname, "../../../.env");
+    const tmpPath = envPath + ".tmp";
 
-    // Read current .env
     let envContent = "";
-    if (fs.existsSync(envPath)) {
-      envContent = fs.readFileSync(envPath, "utf8");
+    try {
+      envContent = await fs.readFile(envPath, "utf8");
+    } catch (err: any) {
+      if (err.code !== "ENOENT") throw err;
+      envContent = "";
     }
 
-    // Prepare new key-values
+    const sanitize = (v: unknown) =>
+      String(v).replace(/\r?\n/g, " ").replace(/"/g, '\\"');
+
     const newValues: Record<string, string> = {
-      FTRACK_SERVER_URL: serverUrl,
-      FTRACK_USERNAME: username,
-      FTRACK_API_KEY: apiKey,
+      FTRACK_SERVER_URL: `"${sanitize(serverUrl)}"`,
+      FTRACK_USERNAME: `"${sanitize(username)}"`,
+      FTRACK_API_KEY: `"${sanitize(apiKey)}"`,
     };
 
-    // Update or append each variable
     for (const [key, value] of Object.entries(newValues)) {
-      const regex = new RegExp(`^${key}=.*$`, "m");
+      const regex = new RegExp(`(^${key}=).*`, "m");
       if (regex.test(envContent)) {
         envContent = envContent.replace(regex, `${key}=${value}`);
       } else {
-        envContent += `\n${key}=${value}`;
+        if (envContent.length && !envContent.endsWith("\n")) envContent += "\n";
+        envContent += `${key}=${value}\n`;
       }
     }
 
-    // Write back to .env
-    fs.writeFileSync(envPath, envContent.trim() + "\n");
+    await fs.writeFile(tmpPath, envContent.trim() + "\n", "utf8");
+    await fs.rename(tmpPath, envPath);
 
-    return res.json({ message: "Ftrack settings saved to .env" });
-  } catch (err) {
-    next(err);
-  }
-};
+      return res.json({ message: "Ftrack settings saved to .env" });
+    } catch (err) {
+      next(err);
+    }
+  };

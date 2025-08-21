@@ -65,6 +65,13 @@ const resetPasswordHandler: RequestHandler<{ token: string }> = (req, res, next)
 };
 
 router.get('/reset-password/:token', resetPasswordHandler);
-router.post("/ftrack", [checkBearerToken], saveFtrackConfig, errorHandler);
+// Utility to wrap async route handlers and forward errors to next()
+function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => Promise<any>): RequestHandler {
+  return (req, res, next) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };
+}
+
+router.post("/ftrack", [checkBearerToken], asyncHandler(saveFtrackConfig), errorHandler);
 
 export default router;
