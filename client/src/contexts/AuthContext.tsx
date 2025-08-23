@@ -110,7 +110,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setToken(token);
       setAccount(fullAccount);
       localStorage.setItem('token', token);
-      localStorage.setItem('account', JSON.stringify(fullAccount));
+      // Only keep necessary account fields before saving to localStorage
+      const minimalAccount = {
+        _id: fullAccount._id,
+        name: fullAccount.name,
+        surname: fullAccount.surname,
+        email: fullAccount.email,
+        role: fullAccount.role,
+        organizationName: fullAccount.organizationName,
+        status: fullAccount.status,
+        mustCompleteProfile: fullAccount.mustCompleteProfile,
+        region: fullAccount.region,
+        // Add other fields you want to keep here
+      };
+      localStorage.setItem('account', JSON.stringify(minimalAccount));
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     } catch (error: any) {
       console.error('Erreur lors de la connexion:', error);
@@ -126,7 +139,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setToken(newToken);
     setAccount(accountData);
     localStorage.setItem('token', newToken);
-    localStorage.setItem('account', JSON.stringify(accountData));
+    // Only keep necessary account fields before saving to localStorage
+      const minimalAccount = {
+        _id: accountData._id,
+        name: accountData.name,
+        surname: accountData.surname,
+        email: accountData.email,
+        role: accountData.role,
+        organizationName: accountData.organizationName,
+        status: accountData.status,
+        mustCompleteProfile: accountData.mustCompleteProfile,
+        region: accountData.region,
+        // Add other fields you want to keep here
+      };
+    localStorage.setItem('account', JSON.stringify(minimalAccount));
     axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
   };
 
@@ -150,7 +176,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const updateAccount = (updatedAccount: Account) => {
     setAccount(updatedAccount);
-    localStorage.setItem('account', JSON.stringify(updatedAccount));
+    const minimalAccount = {
+        _id: updatedAccount._id,
+        name: updatedAccount.name,
+        surname: updatedAccount.surname,
+        email: updatedAccount.email,
+        role: updatedAccount.role,
+        organizationName: updatedAccount.organizationName,
+        status: updatedAccount.status,
+        mustCompleteProfile: updatedAccount.mustCompleteProfile,
+        region: updatedAccount.region,
+        // Add other fields you want to keep here
+      };
+    localStorage.setItem('account', JSON.stringify(minimalAccount));
   };
 
   const checkAuth = (): boolean => {

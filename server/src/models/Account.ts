@@ -31,6 +31,21 @@ const instance = new Schema<I>(
       type: String,
       required: false,
     },
+    username: {
+      type: String,
+      required: false,
+      trim: true,
+    },
+    companyFtrackLink: {
+      type: String,
+      required: false,
+      trim: true,
+    },
+    apiKey: {
+      type: String,
+      required: false,
+      select: false, // Do not return by default for security
+    },
     surname: {
       type: String,
       required: false,
