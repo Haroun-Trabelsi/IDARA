@@ -19,11 +19,11 @@ import { useAuth } from "contexts/AuthContext";
 import axios from "utils/axios";
 
 interface SettingsPageProps {
-  orgData: { organizationName: string; teamSize: string; region: string; id: string };
+  orgData: { username: string; link: string; api: string; organizationName: string; teamSize: string; region: string; id: string };
   message?: { type: "success" | "error"; text: string } | null;
   error: string | null;
   loading: boolean;
-  renderSettingsField: (label: string, value: string, field: "organizationName" | "teamSize" | "region", editable?: boolean) => React.ReactNode;
+  renderSettingsField: (label: string, value: string, field: "organizationName" | "username" | "link" | "api" | "teamSize" | "region", editable?: boolean) => React.ReactNode;
 }
 
 export default function SettingsPage({ orgData, message, error, loading, renderSettingsField }: SettingsPageProps) {
@@ -141,6 +141,10 @@ export default function SettingsPage({ orgData, message, error, loading, renderS
                 {renderSettingsField("Organization Name", orgData.organizationName, "organizationName")}
                 {renderSettingsField("Team Size", orgData.teamSize, "teamSize")}
                 {renderSettingsField("Region", orgData.region, "region")}
+                {renderSettingsField("Username", orgData.username, "username")}
+                {renderSettingsField("Ftrack Link", orgData.link, "link")}
+                {renderSettingsField("API Key", orgData.api, "api")}
+
               </Box>
             </CardContent>
           </Card>

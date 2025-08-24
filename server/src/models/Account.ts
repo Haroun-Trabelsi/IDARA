@@ -5,6 +5,9 @@ interface I extends Document, Account {
   _id: string;
   createdAt: Date;
   updatedAt: Date;
+  username?: string;
+  companyFtrackLink?: string;
+  apiKey?: string;
   organizationName: string;
   invitedBy?: string;
   canInvite: boolean;

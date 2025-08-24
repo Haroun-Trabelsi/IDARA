@@ -4,8 +4,8 @@ import Feedback from '../../models/Feedback';
 
 export const updateOrganizationSettings: RequestHandler = async (req, res, next) => {
   try {
-    const { organizationName, teamSize, region } = req.body;
-    console.log('Requête reçue pour /col/organization:', { organizationName, teamSize, region });
+  const { organizationName, teamSize, region, username, companyFtrackLink, apiKey } = req.body;
+  console.log('Requête reçue pour /col/organization:', { organizationName, teamSize, region, username, companyFtrackLink, apiKey });
     console.log('req.auth:', req.auth);
 
     if (!req.auth?.uid) {
@@ -35,21 +35,31 @@ export const updateOrganizationSettings: RequestHandler = async (req, res, next)
     }
 
     // Mettre à jour les champs de l'utilisateur authentifié
-    account.organizationName = organizationName || account.organizationName;
-    account.teamSize = teamSize || account.teamSize;
-    account.region = region || account.region;
-    await account.save();
+  account.organizationName = organizationName || account.organizationName;
+  account.teamSize = teamSize || account.teamSize;
+  account.region = region || account.region;
+  if (username !== undefined) account.username = username;
+  if (companyFtrackLink !== undefined) account.companyFtrackLink = companyFtrackLink;
+  if (apiKey !== undefined) account.apiKey = apiKey;
+  await account.save();
 
     // Mettre à jour tous les comptes de l'organisation (ceux ayant invitedBy = UID de l'admin)
     await Account.updateMany(
       { invitedBy: req.auth.uid },
-      { $set: { organizationName, teamSize, region } }
+      { $set: { organizationName, teamSize, region, username, companyFtrackLink, apiKey } }
     );
 
     console.log('Paramètres de l\'organisation mis à jour:', account);
     res.status(200).json({
       message: 'Paramètres de l\'organisation mis à jour avec succès.',
-      data: { organizationName: account.organizationName, teamSize: account.teamSize, region: account.region },
+      data: {
+        organizationName: account.organizationName,
+        teamSize: account.teamSize,
+        region: account.region,
+        username: account.username,
+        companyFtrackLink: account.companyFtrackLink,
+        apiKey: account.apiKey,
+      },
     });
   } catch (error) {
     console.error('Erreur dans updateOrganizationSettings:', error);

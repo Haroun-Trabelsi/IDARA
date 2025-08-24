@@ -69,9 +69,8 @@ const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [formData, setFormData] = useState<RegisterFormData>(() => {
-    const savedData = localStorage.getItem('pendingRegistrationData');
     const stateData = (location.state as any)?.formData;
-    const initialData = stateData || (savedData ? JSON.parse(savedData) : {});
+    const initialData = stateData || {};
     return {
       name: initialData.name || '',
       surname: initialData.surname || '',
@@ -83,7 +82,7 @@ const RegisterPage: React.FC = () => {
     };
   });
   const [accountId, setAccountId] = useState<string | null>(
-    (location.state as any)?.accountId || localStorage.getItem('pendingAccountId') || null
+  (location.state as any)?.accountId || null
   );
   const [errors, setErrors] = useState({
     name: '',
@@ -102,11 +101,9 @@ const RegisterPage: React.FC = () => {
   const [orgNameChecking, setOrgNameChecking] = useState(false);
 
   useEffect(() => {
-    console.log('Formulaire initialisé avec:', formData);
-    console.log('Account ID:', accountId);
-    console.log('Données de location.state:', (location.state as any)?.formData);
-    console.log('Données de localStorage (pendingRegistrationData):', localStorage.getItem('pendingRegistrationData'));
-    console.log('pendingVerificationEmail:', localStorage.getItem('pendingVerificationEmail'));
+  console.log('Formulaire initialisé avec:', formData);
+  console.log('Account ID:', accountId);
+  console.log('Données de location.state:', (location.state as any)?.formData);
   }, [formData, location.state, accountId]);
 
   const debouncedCheckOrganizationName = useCallback(
@@ -206,6 +203,7 @@ const RegisterPage: React.FC = () => {
 
       console.log('Envoi des données:', accountId ? 'Mise à jour du compte' : 'Inscription', registrationData);
 
+      let newAccountId = accountId;
       if (accountId) {
         // update existing account
         const response = await axios.put('http://localhost:8080/auth/update-account', {
@@ -213,18 +211,17 @@ const RegisterPage: React.FC = () => {
           accountId
         });
         console.log('Mise à jour réussie:', response.data);
+        newAccountId = accountId;
       } else {
         // create new account
         const response = await axios.post('http://localhost:8080/auth/register', registrationData);
         setAccountId(response.data.data._id);
-        localStorage.setItem('pendingAccountId', response.data.data._id);
-        console.log('Inscription réussie, stockage de l\'accountId:', response.data.data._id);
+        console.log('Inscription réussie, nouvel accountId:', response.data.data._id);
+        newAccountId = response.data.data._id;
       }
 
-      localStorage.setItem('pendingRegistrationData', JSON.stringify(formData));
-      localStorage.setItem('pendingVerificationEmail', formData.email);
       console.log('Redirection vers /verify-email avec email:', formData.email);
-      navigate('/verify-email', { state: { email: formData.email, formData, accountId: accountId || localStorage.getItem('pendingAccountId') } });
+      navigate('/verify-email', { state: { email: formData.email, formData, accountId: newAccountId } });
     } catch (err: any) {
       console.error('Erreur:', accountId ? 'Mise à jour' : 'Inscription', err);
       setErrors(prev => ({
@@ -672,7 +669,9 @@ const RegisterPage: React.FC = () => {
                     fontWeight: 500,
                     '&:hover': { textDecoration: 'underline' } 
                   }}
-                  onClick={() => navigate('/login')}
+                  onClick={() => {
+                    navigate('/login');
+                  }}
                 >
                   Sign in
                 </Box>

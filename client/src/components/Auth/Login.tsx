@@ -119,6 +119,7 @@ const LoginPage: React.FC = () => {
   // Vérification après mise à jour de l'account avec logique basée sur le rôle
   useEffect(() => {
     if (account) {
+      
       if (account.mustCompleteProfile === true) {
         navigate('/CompleteProfil');
       } else if (account.role === 'admin') {

@@ -60,7 +60,7 @@ const regionOptions = [
 export default function OrganizationPage() {
   const { token, logout, account } = useAuth();
   const [activeMenu, setActiveMenu] = useState("settings");
-  const [orgData, setOrgData] = useState<{ organizationName: string; teamSize: string; region: string; id: string } | null>(null);
+  const [orgData, setOrgData] = useState<{ username: string; link: string; api: string; organizationName: string; teamSize: string; region: string; id: string } | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -80,7 +80,7 @@ export default function OrganizationPage() {
 
   // Edit dialog states
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editField, setEditField] = useState<"organizationName" | "teamSize" | "region" | null>(null);
+  const [editField, setEditField] = useState<"organizationName" | "username" | "link" | "api" | "teamSize" | "region" | null>(null);
   const [editValue, setEditValue] = useState<string>("");
 
   // Fonction pour charger les données de l'organisation
@@ -95,15 +95,18 @@ export default function OrganizationPage() {
       const response = await axios.get("/col/organization", { headers: { Authorization: `Bearer ${authToken}` } });
       console.log("Données reçues de /col/organization:", response.data);
       setOrgData({
+        username: response.data.data.username || "",
+        link: response.data.data.link || "",
+        api: response.data.data.api || "",
         organizationName: response.data.data.organizationName || "Organization Name",
         teamSize: response.data.data.teamSize || "Unknown",
         region: response.data.data.region || "Unknown",
         id: response.data.data.id || "",
       });
     } catch (err: any) {
-      console.error("Erreur dans fetchOrganizationData:", err);
-      setError(err.response?.data?.message || "Failed to fetch organization data");
-      setOrgData({ organizationName: "Organization Name", teamSize: "Unknown", region: "Unknown", id: "" });
+  console.error("Erreur dans fetchOrganizationData:", err);
+  setError(err.response?.data?.message || "Failed to fetch organization data");
+  setOrgData({ username: "", link: "", api: "", organizationName: "Organization Name", teamSize: "Unknown", region: "Unknown", id: "" });
     } finally {
       setLoading(false);
     }
@@ -187,7 +190,7 @@ export default function OrganizationPage() {
     setTimeout(() => setMessage(null), 3000);
   };
 
-  const handleEditClick = (field: "organizationName" | "teamSize" | "region", currentValue: string) => {
+  const handleEditClick = (field: "organizationName" | "username" | "link" | "api" | "teamSize" | "region", currentValue: string) => {
     if (account?.status !== "AdministratorOrganization") {
       setError("You do not have permission to edit this field.");
       return;
@@ -272,7 +275,7 @@ export default function OrganizationPage() {
     setTimeout(() => setMessage(null), 3000);
   };
 
-  const renderSettingsField = (label: string, value: string, field: "organizationName" | "teamSize" | "region", editable = true) => (
+  const renderSettingsField = (label: string, value: string, field: "organizationName" | "username" | "link" | "api" | "teamSize" | "region", editable = true) => (
     <React.Fragment>
       {orgData && (
         <Box
@@ -332,7 +335,7 @@ export default function OrganizationPage() {
   };
 
   const renderContent = () => {
-    const defaultOrgData = { organizationName: "Loading...", teamSize: "Unknown", region: "Unknown", id: "" };
+  const defaultOrgData = { username: "", link: "", api: "", organizationName: "Loading...", teamSize: "Unknown", region: "Unknown", id: "" };
     const adaptedOrgData = adaptOrgData(orgData || defaultOrgData);
     switch (activeMenu) {
       case "settings":
@@ -412,14 +415,36 @@ export default function OrganizationPage() {
         }}
       >
         <DialogTitle sx={{ color: "#e2e8f0", borderBottom: "1px solid #2d3748" }}>
-          Edit {editField === "organizationName" ? "Organization Name" : editField === "teamSize" ? "Team Size" : "Region"}
+          Edit {
+            editField === "organizationName"
+              ? "Organization Name"
+              : editField === "teamSize"
+              ? "Team Size"
+              : editField === "region"
+              ? "Region"
+              : editField === "username"
+              ? "Username"
+              : editField === "link"
+              ? "Ftrack Link"
+              : editField === "api"
+              ? "API Key"
+              : "Field"
+          }
         </DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
-          {editField === "organizationName" ? (
+          {editField === "organizationName" || editField === "username" || editField === "link" || editField === "api" ? (
             <TextField
               autoFocus
               fullWidth
-              label="Organization Name"
+              label={
+                editField === "organizationName"
+                  ? "Organization Name"
+                  : editField === "username"
+                  ? "Username"
+                  : editField === "link"
+                  ? "Ftrack Link"
+                  : "API Key"
+              }
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
               sx={{
