@@ -49,7 +49,11 @@ const darkTheme = createTheme({
 
 export default function ProjectManagementInterface() {
   const [ProjectData, setProjectData] = useState<Task[]>();
-  
+  let headers: Record<string, string> = {};
+        const token = localStorage.getItem('token');
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
   const [filterText, setFilterText] = useState("");
   const { selectedProject,setSelectedProject } = useProject();
 
@@ -63,10 +67,8 @@ useEffect(() => {
     try {
       const response = await fetch(
         `http://localhost:8080/api/projects/${encodeURIComponent(selectedProject.id)}`
-      );
+      , { headers });
       const tasks: Task[] = await response.json();
-
-      // Just set tasks directly without fetching video components
       setProjectData(tasks);
     } catch (error) {
       console.error("Failed to fetch project:", error);

@@ -67,7 +67,11 @@ interface TaskTableProps {
 
 export default function TaskTable({ project ,tasks, setTasks }: TaskTableProps) {
 
-
+let headers: Record<string, string> = {};
+    const token = localStorage.getItem('token');
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
   const getStatusColor = (status: string) => {
     switch (status) {
       case "completed":
@@ -88,8 +92,9 @@ async function fetchAllDifficulties(): Promise<Record<string, Record<string, any
       console.error("No project selected.");
       return {};
     }
-
-    const res = await fetch(`http://localhost:8080/results/results_by_task?project=${selectedProject.name}`);
+    const res = await fetch(`http://localhost:8080/results/results_by_task?project=${selectedProject.name}`,
+      {headers}
+    );
     if (!res.ok) throw new Error("Failed to fetch difficulty");
     const data = await res.json();
     return data || {};
@@ -169,7 +174,7 @@ const handleOpenVideoSelector = async (taskId: string) => {
   setVideoModalOpen(true);
 
   try {
-    const res = await fetch(`http://localhost:8080/api/task/${taskId}/components`);
+    const res = await fetch(`http://localhost:8080/api/task/${taskId}/components`,{headers});
     const data = await res.json();
 
     const formattedVideos: any[] = data

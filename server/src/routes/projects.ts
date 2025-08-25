@@ -1,33 +1,39 @@
 import express from 'express';
 import { getFtrackSession } from '../utils/session';
+import checkBearerToken from '../middlewares/check-bearer-token';
+import Account from '../models/Account';
 const router = express.Router();
-const session = getFtrackSession();
+// Remove static session
 
-router.get('/projects', async (req, res) => {
-    try {
-        console.log('Connected to ftrack');
-        console.log('About to query projects');
-        const response = await (await session).query('select id,name from Project');
-        const projects = response.data;
-
-        console.info("Listing " + projects.length + " projects");
-        console.log(projects);
-
-        res.json(projects);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Failed to fetch projects' });
+router.get('/projects', checkBearerToken, async (req, res) => {
+  try {
+    // Get account info from token
+    const account = await Account.findById(req.auth.uid).select('+apiKey username companyFtrackLink');
+    if (!account || !account.apiKey || !account.username || !account.companyFtrackLink) {
+      return res.status(403).json({ error: 'Missing Ftrack credentials in account' });
     }
+    // Create session dynamically
+    const session = await getFtrackSession(account.companyFtrackLink, account.username, account.apiKey);
+    const response = await session.query('select id,name from Project');
+    const projects = response.data;
+    res.json(projects);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch projects' });
+  }
 });
 
 
-router.get('/projects/:projectName', async (req, res) => {
+router.get('/projects/:projectName', checkBearerToken, async (req, res) => {
   try {
     const { projectName } = req.params;
-    console.log(`📋 Fetching tasks for project ID: ${projectName}`);
-
-    const sessionInstance = await session;
-
+    // Get account info from token
+    const account = await Account.findById(req.auth.uid).select('+apiKey username companyFtrackLink');
+    if (!account || !account.apiKey || !account.username || !account.companyFtrackLink) {
+      return res.status(403).json({ error: 'Missing Ftrack credentials in account' });
+    }
+    // Create session dynamically
+    const sessionInstance = await getFtrackSession(account.companyFtrackLink, account.username, account.apiKey);
     // Query all tasks for the given project, including notes
     const taskQuery = await sessionInstance.query(`
       select
@@ -46,9 +52,7 @@ router.get('/projects/:projectName', async (req, res) => {
       from Task
       where project.id is ${projectName}
     `);
-
     const rawTasks = taskQuery.data;
-
     // Extract user IDs
     const userIds = [
       ...new Set(
@@ -57,7 +61,6 @@ router.get('/projects/:projectName', async (req, res) => {
         )
       )
     ];
-
     // Get user names
     let usersById = {};
     if (userIds.length > 0) {
@@ -73,13 +76,11 @@ router.get('/projects/:projectName', async (req, res) => {
         ])
       );
     }
-
     const tasks = rawTasks.map((task, index) => {
       const assignees = task.assignments
         ?.map(a => usersById[a.resource?.id])
         .filter(Boolean)
         .join(', ') || 'Unassigned';
-
       return {
         id: task.id,
         number: index + 1,
@@ -96,7 +97,6 @@ router.get('/projects/:projectName', async (req, res) => {
         deltaHours: ((task?.time_logged || 0) - (task?.bid || 0)) / 3600
       };
     });
-
     res.json(tasks);
   } catch (err) {
     console.error('❌ Failed to fetch project tasks:', err);
@@ -106,21 +106,24 @@ router.get('/projects/:projectName', async (req, res) => {
 
 
 
-router.get('/task/:taskId/components', async (req, res) => {
+router.get('/task/:taskId/components', checkBearerToken, async (req, res) => {
   const { taskId } = req.params;
   try {
-    const sessionInstance = await session;
-
+    // Get account info from token
+    const account = await Account.findById(req.auth.uid).select('+apiKey username companyFtrackLink');
+    if (!account || !account.apiKey || !account.username || !account.companyFtrackLink) {
+      return res.status(403).json({ error: 'Missing Ftrack credentials in account' });
+    }
+    // Create session dynamically
+    const sessionInstance = await getFtrackSession(account.companyFtrackLink, account.username, account.apiKey);
     // 1. Get the shot ID from the task's parent
     const taskQuery = await sessionInstance.query(`
       select parent.id from Task where id is ${taskId}
     `);
-
     const shotId = taskQuery.data?.[0]?.parent?.id;
     if (!shotId) {
       return res.status(404).json({ error: 'Shot context not found for task' });
     }
-
     // 2. Fetch AssetVersions under Shot
     const shotVersionsQuery = await sessionInstance.query(`
       select
@@ -133,7 +136,6 @@ router.get('/task/:taskId/components', async (req, res) => {
       where asset.parent.id is ${shotId}
       order by date desc
     `);
-
     // 3. Fetch AssetVersions directly under Task
     const taskVersionsQuery = await sessionInstance.query(`
       select
@@ -146,7 +148,6 @@ router.get('/task/:taskId/components', async (req, res) => {
       where task.id is ${taskId}
       order by date desc
     `);
-
     const extractVideos = (versions: any[]) =>
       versions
         .map((av: any) => ({
@@ -156,14 +157,11 @@ router.get('/task/:taskId/components', async (req, res) => {
           date: av.date,
         }))
         .filter(v => v.url);
-
     const videos = [
       ...extractVideos(shotVersionsQuery.data),
       ...extractVideos(taskVersionsQuery.data),
     ];
-
     res.json(videos);
-
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch video components from task and shot context' });

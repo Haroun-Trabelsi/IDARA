@@ -3,10 +3,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-export async function getFtrackSession() {
-    const SERVER_URL = process.env.FTRACK_SERVER_URL;
-    const USERNAME = process.env.FTRACK_USERNAME;
-    const API_KEY = process.env.FTRACK_API_KEY;
+export async function getFtrackSession(SERVER_URL?: string, USERNAME?: string, API_KEY?: string): Promise<ftrack.Session> {
 
     if (!SERVER_URL || !USERNAME || !API_KEY) {
         throw new Error("Missing ftrack credentials in .env file");

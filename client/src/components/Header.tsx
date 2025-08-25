@@ -44,7 +44,15 @@ export default function Header() {
   useEffect(() => {
     const fetchProjects = async () => {
       try {
-        const response = await fetch("http://localhost:8080/api/projects")
+        // Attach token if logged in
+        let headers: Record<string, string> = {};
+        const token = localStorage.getItem('token');
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        const response = await fetch("http://localhost:8080/api/projects", {
+          headers
+        });
         if (!response.ok) {
           throw new Error(`Failed to fetch projects: ${response.status}`)
         }
@@ -57,7 +65,6 @@ export default function Header() {
         setLoading(false)
       }
     }
-
     fetchProjects()
   }, [])
 
