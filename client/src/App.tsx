@@ -27,7 +27,6 @@ import ResetPasswordPage from 'components/Auth/ResetPasswordPage';
 import CheckEmailPage from 'components/Auth/ResetPwdCheckEmailPage';
 
 import RegisterStaticPage from 'components/Auth/RegisterStaticPage';
-import FtrackSetup from 'components/Auth/FtrackSetup';
 
 const DefaultLayout = ({ children }: { children: React.ReactNode }) => (
   <div className="min-h-screen flex flex-col bg-gray-900 text-gray-300 w-full">
@@ -164,14 +163,7 @@ const App = () => {
                   </PublicLayout>
                 }
               />
-            <Route
-                  path="/ftrack-setup"
-                  element={
-                  <PublicLayout>
-                    <FtrackSetup />
-                  </PublicLayout>
-                  }
-                />
+
             <Route
               path="/CompleteProfil"
               element={

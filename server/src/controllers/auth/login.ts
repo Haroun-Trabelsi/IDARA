@@ -49,14 +49,14 @@ const login: RequestHandler = async (req, res, next) => {
     // Generate access token
     const token = jwt.signToken({ uid: account._id, role: account.role })
 
-    // Remove password from response data
-    const { password: _, ...accountData } = account.toObject()
-
+    // Remove password from response data and mask apiKey
+    const { password: _, apiKey, ...accountData } = account.toObject();
+    // Add masked apiKey explicitly to response
     res.status(200).json({
       message: 'Connexion réussie',
-      data: accountData,
+      data: { ...accountData, apiKey: apiKey ? '**********' : '' },
       token,
-    })
+    });
   } catch (error) {
     next(error)
   }

@@ -60,7 +60,7 @@ const regionOptions = [
 export default function OrganizationPage() {
   const { token, logout, account } = useAuth();
   const [activeMenu, setActiveMenu] = useState("settings");
-  const [orgData, setOrgData] = useState<{ username: string; link: string; api: string; organizationName: string; teamSize: string; region: string; id: string } | null>(null);
+  const [orgData, setOrgData] = useState<{ username: string; companyFtrackLink: string; apiKey: string; organizationName: string; teamSize: string; region: string; id: string } | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -80,7 +80,7 @@ export default function OrganizationPage() {
 
   // Edit dialog states
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editField, setEditField] = useState<"organizationName" | "username" | "link" | "api" | "teamSize" | "region" | null>(null);
+  const [editField, setEditField] = useState<"organizationName" | "username" | "companyFtrackLink" | "apiKey" | "teamSize" | "region" | null>(null);
   const [editValue, setEditValue] = useState<string>("");
 
   // Fonction pour charger les données de l'organisation
@@ -96,8 +96,8 @@ export default function OrganizationPage() {
       console.log("Données reçues de /col/organization:", response.data);
       setOrgData({
         username: response.data.data.username || "",
-        link: response.data.data.link || "",
-        api: response.data.data.api || "",
+        companyFtrackLink: response.data.data.companyFtrackLink || response.data.data.link || "",
+        apiKey: response.data.data.apiKey || response.data.data.api || "",
         organizationName: response.data.data.organizationName || "Organization Name",
         teamSize: response.data.data.teamSize || "Unknown",
         region: response.data.data.region || "Unknown",
@@ -106,7 +106,7 @@ export default function OrganizationPage() {
     } catch (err: any) {
   console.error("Erreur dans fetchOrganizationData:", err);
   setError(err.response?.data?.message || "Failed to fetch organization data");
-  setOrgData({ username: "", link: "", api: "", organizationName: "Organization Name", teamSize: "Unknown", region: "Unknown", id: "" });
+  setOrgData({ username: "", companyFtrackLink: "", apiKey: "", organizationName: "Organization Name", teamSize: "Unknown", region: "Unknown", id: "" });
     } finally {
       setLoading(false);
     }
@@ -190,7 +190,7 @@ export default function OrganizationPage() {
     setTimeout(() => setMessage(null), 3000);
   };
 
-  const handleEditClick = (field: "organizationName" | "username" | "link" | "api" | "teamSize" | "region", currentValue: string) => {
+  const handleEditClick = (field: "organizationName" | "username" | "companyFtrackLink" | "apiKey" | "teamSize" | "region", currentValue: string) => {
     if (account?.status !== "AdministratorOrganization") {
       setError("You do not have permission to edit this field.");
       return;
@@ -275,7 +275,7 @@ export default function OrganizationPage() {
     setTimeout(() => setMessage(null), 3000);
   };
 
-  const renderSettingsField = (label: string, value: string, field: "organizationName" | "username" | "link" | "api" | "teamSize" | "region", editable = true) => (
+  const renderSettingsField = (label: string, value: string, field: "organizationName" | "username" | "companyFtrackLink" | "apiKey" | "teamSize" | "region", editable = true) => (
     <React.Fragment>
       {orgData && (
         <Box
@@ -335,7 +335,7 @@ export default function OrganizationPage() {
   };
 
   const renderContent = () => {
-  const defaultOrgData = { username: "", link: "", api: "", organizationName: "Loading...", teamSize: "Unknown", region: "Unknown", id: "" };
+  const defaultOrgData = { username: "", companyFtrackLink: "", apiKey: "", organizationName: "Loading...", teamSize: "Unknown", region: "Unknown", id: "" };
     const adaptedOrgData = adaptOrgData(orgData || defaultOrgData);
     switch (activeMenu) {
       case "settings":
@@ -424,15 +424,15 @@ export default function OrganizationPage() {
               ? "Region"
               : editField === "username"
               ? "Username"
-              : editField === "link"
+              : editField === "companyFtrackLink"
               ? "Ftrack Link"
-              : editField === "api"
+              : editField === "apiKey"
               ? "API Key"
               : "Field"
           }
         </DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
-          {editField === "organizationName" || editField === "username" || editField === "link" || editField === "api" ? (
+          {editField === "organizationName" || editField === "username" || editField === "companyFtrackLink" || editField === "apiKey" ? (
             <TextField
               autoFocus
               fullWidth
@@ -441,7 +441,7 @@ export default function OrganizationPage() {
                   ? "Organization Name"
                   : editField === "username"
                   ? "Username"
-                  : editField === "link"
+                  : editField === "companyFtrackLink"
                   ? "Ftrack Link"
                   : "API Key"
               }

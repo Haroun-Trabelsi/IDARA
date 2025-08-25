@@ -24,6 +24,7 @@ export const updateOrganizationSettings: RequestHandler = async (req, res, next)
         message: 'Utilisateur non trouvé.',
       });
     }
+    console.log('Utilisateur authentifié trouvé:', account);
 
     // Vérifier si l'utilisateur est AdministratorOrganization
     if (account.status !== 'AdministratorOrganization') {
@@ -38,9 +39,9 @@ export const updateOrganizationSettings: RequestHandler = async (req, res, next)
   account.organizationName = organizationName || account.organizationName;
   account.teamSize = teamSize || account.teamSize;
   account.region = region || account.region;
-  if (username !== undefined) account.username = username;
-  if (companyFtrackLink !== undefined) account.companyFtrackLink = companyFtrackLink;
-  if (apiKey !== undefined) account.apiKey = apiKey;
+  account.username = username || account.username;
+  account.apiKey = apiKey || account.apiKey;
+  account.companyFtrackLink = companyFtrackLink || account.companyFtrackLink;
   await account.save();
 
     // Mettre à jour tous les comptes de l'organisation (ceux ayant invitedBy = UID de l'admin)
@@ -58,7 +59,7 @@ export const updateOrganizationSettings: RequestHandler = async (req, res, next)
         region: account.region,
         username: account.username,
         companyFtrackLink: account.companyFtrackLink,
-        apiKey: account.apiKey,
+        apiKey: account.apiKey ? '**********' : '', // Always show 10 * if exists, never the real value
       },
     });
   } catch (error) {
@@ -194,6 +195,8 @@ export const getOrganizationSettings: RequestHandler = async (req, res, next) =>
         organizationName: account.organizationName,
         teamSize: account.teamSize,
         region: account.region,
+        username: account.username,
+        companyFtrackLink: account.companyFtrackLink,
         id: account._id,
       },
     });

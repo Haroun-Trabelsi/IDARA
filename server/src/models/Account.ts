@@ -47,7 +47,7 @@ const instance = new Schema<I>(
     apiKey: {
       type: String,
       required: false,
-      select: false, // Do not return by default for security
+      select: false,
     },
     surname: {
       type: String,
