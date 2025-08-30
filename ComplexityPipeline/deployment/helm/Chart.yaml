@@ -1,0 +1,34 @@
+apiVersion: v2
+name: vfx-pipeline
+description: A Helm chart for VFX Shot Complexity Prediction Pipeline
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+keywords:
+  - vfx
+  - machine-learning
+  - video-processing
+  - prefect
+
+home: https://github.com/your-org/vfx-pipeline
+sources:
+  - https://github.com/your-org/vfx-pipeline
+
+maintainers:
+  - name: VFX Team
+    email: vfx-team@company.com
+
+dependencies:
+  - name: mongodb
+    version: "13.15.1"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: mongodb.enabled
+  - name: redis
+    version: "17.11.3"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: redis.enabled
+  - name: prometheus
+    version: "23.1.0"
+    repository: "https://prometheus-community.github.io/helm-charts"
+    condition: prometheus.enabled

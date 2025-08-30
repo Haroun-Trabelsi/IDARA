@@ -1,0 +1,115 @@
+# Staging environment values for vfx-pipeline
+replicaCount: 1
+
+image:
+  repository: vfx-pipeline
+  pullPolicy: Always
+  tag: "main"
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 2Gi
+    nvidia.com/gpu: 1
+  requests:
+    cpu: 500m
+    memory: 1Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 85
+
+# Staging-specific configuration
+config:
+  mongodb:
+    uri: "mongodb://vfx-pipeline-staging-mongodb:27017"
+    database: "vfx_classification_staging"
+  
+  redis:
+    host: "vfx-pipeline-staging-redis-master"
+    port: 6379
+    
+  api:
+    host: "0.0.0.0"
+    port: 8000
+    workers: 2
+    
+  performance:
+    max_workers: 4
+    enable_gpu_optimization: true
+    mixed_precision: true
+    
+  security:
+    jwt_secret_key: "staging-jwt-secret-key-change-me"
+    api_key_hash_salt: "staging-salt-change-me"
+    
+  health_checks:
+    interval_seconds: 30
+    thresholds:
+      cpu_percent: 85.0
+      memory_percent: 90.0
+
+# Smaller persistent volumes for staging
+persistence:
+  enabled: true
+  size: 5Gi
+
+# Dependencies with reduced resources
+mongodb:
+  enabled: true
+  auth:
+    enabled: false
+  persistence:
+    enabled: true
+    size: 10Gi
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+redis:
+  enabled: true
+  auth:
+    enabled: false
+  master:
+    persistence:
+      enabled: true
+      size: 2Gi
+    resources:
+      limits:
+        cpu: 200m
+        memory: 256Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+
+prometheus:
+  enabled: true
+  server:
+    persistentVolume:
+      enabled: true
+      size: 5Gi
+    resources:
+      limits:
+        cpu: 500m
+        memory: 1Gi
+      requests:
+        cpu: 250m
+        memory: 512Mi
+
+# Enable monitoring for staging
+monitoring:
+  serviceMonitor:
+    enabled: true
+    interval: 60s
+    
+  grafana:
+    enabled: true
+    dashboards:
+      enabled: true

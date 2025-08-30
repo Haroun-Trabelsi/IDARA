@@ -1,0 +1,35 @@
+version: '3.9'
+
+services:
+  app:
+    build: .
+    container_name: video_pipeline
+    volumes:
+      - ./input_files:/app/input_files
+      - ./temp_outputs:/app/temp_outputs
+    depends_on:
+      - mongo
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: python main.py
+
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:6
+    container_name: mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  mongo_data:

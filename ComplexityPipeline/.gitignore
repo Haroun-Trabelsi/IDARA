@@ -1,0 +1,49 @@
+# =================================================================
+# GENERAL / SHARED
+# =================================================================
+# Dependencies and build artifacts
+node_modules
+.pnp
+.pnp.js
+build/
+dist/
+
+# Environment variables
+.env
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+*.pid
+
+
+# PyInstaller
+*.manifest
+*.spec
+
+
+
+# mypy
+.mypy_cache/
+.dmypy.json
+.pyre/
+
+# Environments (additional)
+.venv
+venv/
+ENV/
+
+# IDE specific
+.idea/
+.vscode/
+
+
+input_files/
+temp_outputs/
+features/
+pipeline/__pycache__/
+__pycache__/
+complexity_models/__pycache__/

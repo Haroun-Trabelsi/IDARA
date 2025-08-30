@@ -1,0 +1,168 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "vfx-pipeline.fullname" . }}
+  labels:
+    {{- include "vfx-pipeline.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "vfx-pipeline.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "vfx-pipeline.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "vfx-pipeline.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        - name: wait-for-mongodb
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              until nc -z {{ .Values.config.mongodb.uri | replace "mongodb://" "" | replace ":27017" "" }} 27017; do
+                echo "Waiting for MongoDB..."
+                sleep 2
+              done
+              echo "MongoDB is ready!"
+        {{- if .Values.redis.enabled }}
+        - name: wait-for-redis
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              until nc -z {{ .Values.config.redis.host }} {{ .Values.config.redis.port }}; do
+                echo "Waiting for Redis..."
+                sleep 2
+              done
+              echo "Redis is ready!"
+        {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.config.api.port }}
+              protocol: TCP
+            - name: metrics
+              containerPort: 9090
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          env:
+            - name: MONGODB_URI
+              value: {{ .Values.config.mongodb.uri }}
+            - name: MONGODB_DATABASE
+              value: {{ .Values.config.mongodb.database }}
+            - name: REDIS_HOST
+              value: {{ .Values.config.redis.host }}
+            - name: REDIS_PORT
+              value: "{{ .Values.config.redis.port }}"
+            - name: API_HOST
+              value: {{ .Values.config.api.host }}
+            - name: API_PORT
+              value: "{{ .Values.config.api.port }}"
+            - name: WORKERS
+              value: "{{ .Values.config.api.workers }}"
+            - name: MAX_WORKERS
+              value: "{{ .Values.config.performance.max_workers }}"
+            - name: ENABLE_GPU_OPTIMIZATION
+              value: "{{ .Values.config.performance.enable_gpu_optimization }}"
+            - name: MIXED_PRECISION
+              value: "{{ .Values.config.performance.mixed_precision }}"
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "vfx-pipeline.fullname" . }}-secrets
+                  key: jwt-secret-key
+            - name: API_KEY_HASH_SALT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "vfx-pipeline.fullname" . }}-secrets
+                  key: api-key-hash-salt
+          volumeMounts:
+            - name: input-files
+              mountPath: {{ .Values.persistence.inputFiles.mountPath }}
+              subPath: {{ .Values.persistence.inputFiles.subPath }}
+            - name: models
+              mountPath: {{ .Values.persistence.models.mountPath }}
+              subPath: {{ .Values.persistence.models.subPath }}
+            - name: cache
+              mountPath: {{ .Values.persistence.cache.mountPath }}
+              subPath: {{ .Values.persistence.cache.subPath }}
+            - name: config
+              mountPath: /app/config.yaml
+              subPath: config.yaml
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: input-files
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "vfx-pipeline.fullname" . }}-pvc
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: models
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "vfx-pipeline.fullname" . }}-pvc
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: cache
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "vfx-pipeline.fullname" . }}-pvc
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: config
+          configMap:
+            name: {{ include "vfx-pipeline.fullname" . }}-config
+        - name: tmp
+          emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

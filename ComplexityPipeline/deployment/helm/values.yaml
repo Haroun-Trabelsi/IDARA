@@ -1,0 +1,167 @@
+# Default values for vfx-pipeline
+replicaCount: 2
+
+image:
+  repository: vfx-pipeline
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  fsGroup: 2000
+
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 8000
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: vfx-pipeline.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  limits:
+    cpu: 2000m
+    memory: 4Gi
+    nvidia.com/gpu: 1
+  requests:
+    cpu: 1000m
+    memory: 2Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Application configuration
+config:
+  mongodb:
+    uri: "mongodb://vfx-pipeline-mongodb:27017"
+    database: "vfx_classification"
+  
+  redis:
+    host: "vfx-pipeline-redis-master"
+    port: 6379
+    
+  api:
+    host: "0.0.0.0"
+    port: 8000
+    workers: 4
+    
+  watchdog:
+    directory: "/app/input_files"
+    
+  performance:
+    max_workers: 8
+    enable_gpu_optimization: true
+    mixed_precision: true
+    
+  security:
+    jwt_secret_key: "your-secret-key-here"
+    api_key_hash_salt: "your-salt-here"
+    
+  health_checks:
+    interval_seconds: 30
+    thresholds:
+      cpu_percent: 80.0
+      memory_percent: 85.0
+
+# Persistent volumes
+persistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 10Gi
+  
+  # Mount paths
+  inputFiles:
+    mountPath: /app/input_files
+    subPath: input_files
+    
+  models:
+    mountPath: /app/inference_model
+    subPath: models
+    
+  cache:
+    mountPath: /app/cache
+    subPath: cache
+
+# Dependencies
+mongodb:
+  enabled: true
+  auth:
+    enabled: false
+  persistence:
+    enabled: true
+    size: 20Gi
+
+redis:
+  enabled: true
+  auth:
+    enabled: false
+  master:
+    persistence:
+      enabled: true
+      size: 5Gi
+
+prometheus:
+  enabled: true
+  server:
+    persistentVolume:
+      enabled: true
+      size: 10Gi
+
+# Monitoring
+monitoring:
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    
+  grafana:
+    enabled: true
+    dashboards:
+      enabled: true
+
+# Jobs
+jobs:
+  modelDownload:
+    enabled: true
+    image:
+      repository: alpine/curl
+      tag: latest
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi

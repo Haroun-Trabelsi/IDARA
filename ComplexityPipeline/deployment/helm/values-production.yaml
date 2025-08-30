@@ -1,0 +1,197 @@
+# Production environment values for vfx-pipeline
+replicaCount: 3
+
+image:
+  repository: vfx-pipeline
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+resources:
+  limits:
+    cpu: 2000m
+    memory: 4Gi
+    nvidia.com/gpu: 1
+  requests:
+    cpu: 1000m
+    memory: 2Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Production-specific configuration
+config:
+  mongodb:
+    uri: "mongodb://vfx-pipeline-production-mongodb:27017"
+    database: "vfx_classification_production"
+  
+  redis:
+    host: "vfx-pipeline-production-redis-master"
+    port: 6379
+    
+  api:
+    host: "0.0.0.0"
+    port: 8000
+    workers: 4
+    
+  performance:
+    max_workers: 8
+    enable_gpu_optimization: true
+    mixed_precision: true
+    
+  security:
+    jwt_secret_key: "production-jwt-secret-key-change-me"
+    api_key_hash_salt: "production-salt-change-me"
+    
+  health_checks:
+    interval_seconds: 30
+    thresholds:
+      cpu_percent: 80.0
+      memory_percent: 85.0
+
+# Full persistent volumes for production
+persistence:
+  enabled: true
+  size: 50Gi
+
+# Dependencies with production resources
+mongodb:
+  enabled: true
+  auth:
+    enabled: true
+    rootPassword: "change-me-mongodb-root-password"
+    username: "vfx_user"
+    password: "change-me-mongodb-user-password"
+    database: "vfx_classification_production"
+  persistence:
+    enabled: true
+    size: 100Gi
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+    requests:
+      cpu: 1000m
+      memory: 2Gi
+  replicaSet:
+    enabled: true
+    replicas:
+      secondary: 2
+
+redis:
+  enabled: true
+  auth:
+    enabled: true
+    password: "change-me-redis-password"
+  master:
+    persistence:
+      enabled: true
+      size: 10Gi
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+      requests:
+        cpu: 500m
+        memory: 1Gi
+  replica:
+    replicaCount: 2
+    persistence:
+      enabled: true
+      size: 10Gi
+    resources:
+      limits:
+        cpu: 500m
+        memory: 1Gi
+      requests:
+        cpu: 250m
+        memory: 512Mi
+
+prometheus:
+  enabled: true
+  server:
+    persistentVolume:
+      enabled: true
+      size: 50Gi
+    resources:
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+      requests:
+        cpu: 1000m
+        memory: 2Gi
+    retention: "30d"
+
+# Enable comprehensive monitoring for production
+monitoring:
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    
+  grafana:
+    enabled: true
+    dashboards:
+      enabled: true
+    persistence:
+      enabled: true
+      size: 5Gi
+
+# Production ingress configuration
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+  hosts:
+    - host: vfx-pipeline.company.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: vfx-pipeline-tls
+      hosts:
+        - vfx-pipeline.company.com
+
+# Production security settings
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 2000
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# Node affinity for production workloads
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: node-type
+          operator: In
+          values:
+          - gpu-enabled
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values:
+            - vfx-pipeline
+        topologyKey: kubernetes.io/hostname

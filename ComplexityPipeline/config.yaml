@@ -1,0 +1,70 @@
+# config.yaml for Inference Pipeline
+
+# --- Core Infrastructure Settings ---
+mongodb:
+  uri: "mongodb+srv://NovaMind:CYY4pCJD&XCe@vision-age-db.wjx8l7t.mongodb.net/?retryWrites=true&w=majority&appName=Vision-Age-DB"
+  database: "vfx_classification_demo"
+  collection: "results"
+
+watchdog:
+  directory: "input_files" # Drop videos here to trigger the pipeline
+
+api:
+  host: "0.0.0.0"
+  port: 8089
+
+# --- Multimodal Model Configuration ---
+multimodal_model:
+  # Paths to your trained components (must be inside 'inference_model/' folder)
+  model_path: "inference_model/best_fine_tuned_model.pt"
+  scaler_path: ""  # No scaler required for fine-tuned model
+  imputer_path: ""  # No imputer required
+
+  # Directory for storing intermediate .npy features
+  features_dir: "features"
+
+  # The names of the classes your model predicts
+  class_names: ['Easy', 'Medium', 'Hard']
+
+  # --- CRITICAL: Static Feature Definition ---
+  # The names and ORDER of these features must EXACTLY match the
+  # 'static_features' list from your training config.
+  static_features:
+    - zoom_score
+    - blur_score
+    - distortion_score
+    - motion_score
+    - light_score
+    - noise_score
+    - overlap_score
+    - parallax_score
+    - focus_pull_score
+    - sequence_mean  # average over sequence .npy feature tensor
+    # NOTE: These names must match exactly what your model was trained on.
+    # If your model was trained on different names (e.g., 'avg_zoom'),
+    # you MUST change them here to match.
+
+  # --- Model Architecture (for loading the class) ---
+  # These values must match the model you are loading.
+  vis_feat_dim: 2048
+  static_feat_dim: 10
+  rnn_hidden_dim: 256
+  dense_hidden_dim: 128
+  rnn_type: "lstm"
+  num_layers: 2
+  bidirectional: true
+  attention: true
+
+  # --- Calibration ---
+  temperature: 3.0        # Lower = more confident predictions, reduces Easy→Medium confusion
+  # class_priors: [0.33, 0.33, 0.34]  # Uncomment & set if you know dataset distribution
+
+
+# --- Complexity Model Paths ---
+# Paths to the models required by your 9 individual analysis scripts.
+# These must also be placed inside the 'inference_model/' folder.
+complexity_model_paths:
+  blur: "D:/Projects_MP4/Clients/Parallaxe plates/segment-anything/blur_cnn_lstm_finetuned.pt"
+  focus_pull: "D:/Projects_MP4/Clients/Parallaxe plates/segment-anything/focus_pull_resnet50_lstm.pth"
+  noise: "D:/Projects_MP4/Clients/Parallaxe plates/segment-anything/noise_classification_cnn_lstm.pt"
+  # Add other models here if they also require a path
