@@ -13,3 +13,7 @@ dist
 *.log
 *.pid
 client/dist/
+ComplexityPipeline/temp_outputs/*
+ComplexityPipeline/pipeline/__pycache__/*
+ComplexityPipeline/features/*
+ComplexityPipeline/complexity_models/__pycache__/*
