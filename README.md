@@ -96,10 +96,56 @@ If you encounter connection issues to MongoDB Atlas and the console suggests whi
 ## Features Implemented
 
 - User authentication (registration/login)
+- Multi-factor authentication (MFA)
+- Organization and team management
+- VFX shot complexity analysis
+- Project and sequence tracking
+- Ftrack integration support
 - Session management
-- Basic website template
-- API key placeholder (to be populated)
-- Ftrack URL placeholder (to be populated)
+- Contact form and feedback system
+- Admin dashboard
+- **Mock Data System** for demonstrations
+
+## 🎭 Demo Mode / Mock Data System
+
+IDara includes a comprehensive mock data system that allows the application to run standalone without backend or database access. Perfect for:
+- **Demonstrations** and presentations
+- **Portfolio showcases**
+- **Development** without backend setup
+- **Offline usage**
+
+### Quick Demo Setup
+
+```bash
+cd client
+echo "REACT_APP_USE_MOCK_DATA=true" > .env
+npm start
+```
+
+**Demo Login:**
+- Email: `john.doe@vfxstudio.com`
+- Password: `Demo123!`
+
+### With Database Seeding
+
+```bash
+# Setup and seed database
+cd server
+echo "MONGODB_URI=mongodb://localhost:27017/idara" > .env
+npm run seed
+
+# Run the application
+npm run dev
+```
+
+📖 **Full Documentation:** See [MOCK_DATA_README.md](./MOCK_DATA_README.md) for complete details.
+
+### Mock Data Includes:
+- ✅ 5 User accounts (admins and users)
+- ✅ 3 VFX projects with 400+ shots
+- ✅ 5 Complexity analysis results
+- ✅ Contact messages and feedback
+- ✅ Automatic API fallback
 
 ## Troubleshooting
 

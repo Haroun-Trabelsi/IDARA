@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "npx tsx src/index.ts",
     "build": "if exist dist rmdir /s /q dist && npx tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "seed": "npx tsx src/scripts/seed.ts"
   },
   "dependencies": {
     "@ftrack/api": "^1.11.2",
